@@ -1,7 +1,7 @@
 import { Navigate, Outlet, Link, useNavigate } from "react-router-dom";
 import { useStateContext } from "../Context/ContextProvider";
 import { useEffect, useState } from "react";
-import axiosClient from "../axiosClient";
+import axiosClient, { assetUrl } from "../axiosClient";
 import * as React from 'react';
 
 // Directly import Material-UI components
@@ -66,6 +66,7 @@ export default function UserLayout() {
   const [notifications, setNotifications] = React.useState([]);
   const [recentUpdates, setRecentUpdates] = React.useState([]);
   const [notificationAnchor, setNotificationAnchor] = React.useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [seenIds, setSeenIds] = React.useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem('seen_notification_ids') || '[]')); }
     catch { return new Set(); }
@@ -135,16 +136,14 @@ export default function UserLayout() {
     // Set up Reverb listener for real-time updates if Echo is available
     if (window.Echo) {
       try {
-        window.Echo.channel('transactions')
-          .listen('TransactionUpdated', (event) => {
+        window.Echo.private(`transactions.user.${user.id}`)
+          .listen('.transaction.updated', (event) => {
             // Refresh notifications when ANY transaction is updated
             refreshNotifications();
             // Dispatch event for BorrowHistory to refresh
             window.dispatchEvent(new CustomEvent('transactionUpdated', { detail: event }));
           });
-      } catch (error) {
-        console.log('Reverb not available, using polling fallback');
-      }
+      } catch { /* Polling remains available. */ }
     }
 
     return () => {
@@ -153,8 +152,8 @@ export default function UserLayout() {
       clearInterval(requestInterval);
       if (window.Echo) {
         try {
-          window.Echo.leaveChannel('transactions');
-        } catch (e) { }
+          window.Echo.leave(`transactions.user.${user.id}`);
+        } catch { /* The connection may already be closed. */ }
       }
     };
   }, [user?.id, setUser]);
@@ -219,12 +218,14 @@ export default function UserLayout() {
   };
 
   // Logout handler
-  const onLogout = () => {
-    axiosClient.get('/logout')
-      .then(() => {
-        setUser(null);
-        setToken(null);
-      });
+  const onLogout = async () => {
+    try {
+      await axiosClient.post('/logout');
+    } finally {
+      setUser(null);
+      setToken(null);
+      navigate('/auth', { replace: true });
+    }
   };
 
   // Cart handlers
@@ -264,8 +265,6 @@ export default function UserLayout() {
   const handleClearCart = () => {
     setCart([]);
   };
-
-  const [submitting, setSubmitting] = useState(false);
 
   const handleProceedToRequest = async () => {
     if (submitting) return;
@@ -330,11 +329,7 @@ export default function UserLayout() {
 
   // Get image source with fallback
   const getImageSrc = (imagePath) => {
-    const BASE_URL = import.meta.env.VITE_APP_URL || 'http://127.0.0.1:8000';
-    if (!imagePath || imagePath.trim() === '' || imagePath === 'null' || imagePath === null) {
-      return `${BASE_URL}/storage/itemImage/No-image-default.png`;
-    }
-    return `${BASE_URL}/storage/${imagePath}`;
+    return assetUrl(imagePath ? `/storage/${imagePath}` : null);
   };
 
   // Group cart items by laboratory
@@ -369,7 +364,7 @@ export default function UserLayout() {
           <Toolbar disableGutters sx={{ gap: 2, py: 1 }}>
             <Box
               component="img"
-              src="http://localhost:8000/storage/logo/logo.png"
+              src={assetUrl('/storage/logo/logo.png')}
               alt="Logo"
               sx={{
                 display: { xs: "none", md: "flex" },
@@ -755,7 +750,7 @@ export default function UserLayout() {
                 >
                   <Avatar
                     alt={user?.name?.toUpperCase() || 'User'}
-                    src={user?.avatar ? `${import.meta.env.VITE_APP_URL || 'http://127.0.0.1:8000'}/storage/${user.avatar}` : ''}
+                    src={user?.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined}
                     sx={{
                       width: 40,
                       height: 40,
@@ -904,7 +899,7 @@ export default function UserLayout() {
                             backgroundColor: 'rgba(0, 0, 0, 0.05)',
                           }}
                           onError={(e) => {
-                            e.target.src = `${import.meta.env.VITE_APP_URL || 'http://127.0.0.1:8000'}/storage/itemImage/No-image-default.png`;
+                            e.target.src = assetUrl(null);
                           }}
                         />
                         <CardContent sx={{ pb: 1, flex: 1, '&:last-child': { pb: 1 }, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>

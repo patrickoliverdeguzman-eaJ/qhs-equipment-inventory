@@ -1,12 +1,12 @@
-import { Link, Navigate, Outlet, useLocation } from "react-router-dom";
+import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useStateContext } from "../Context/ContextProvider";
-import axiosClient from "../axiosClient";
+import axiosClient, { assetUrl } from "../axiosClient";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import * as React from 'react';
 import * as Mui from '../assets/muiImports';
 import { Avatar } from "@mui/material";
 import { getInitials } from "../utils";
-import '../echo.js';   // ← Now correct: from src/Components/ up to src/  // ← Correct path from src/components/ to src/echo.js
+import '../echo.js';
 // Theme Context
 const ThemeContext = React.createContext({
   toggleTheme: () => {},
@@ -55,6 +55,7 @@ const Clock = () => {
 export default function DefaultLayout() {
   const { user, token, setUser, setToken } = useStateContext();
   const location = useLocation();
+  const navigate = useNavigate();
   const [title, setTitle] = useState("Admin");
   const drawerWidth = 240;
   const [open, setOpen] = React.useState(false);
@@ -126,10 +127,11 @@ export default function DefaultLayout() {
 
   const onLogout = (ev) => {
     ev.preventDefault();
-    axiosClient.get('/logout')
-      .then(() => {
+    axiosClient.post('/logout')
+      .finally(() => {
         setUser(null);
         setToken(null);
+        navigate('/auth', { replace: true });
       });
   };
 
@@ -139,6 +141,20 @@ export default function DefaultLayout() {
         setUser(data);
       });
   }, []);
+
+  useEffect(() => {
+    if (!window.Echo || user?.role !== 'admin') return undefined;
+
+    const channel = window.Echo.private('transactions.admin')
+      .listen('.transaction.updated', (event) => {
+        window.dispatchEvent(new CustomEvent('transactionUpdated', { detail: event }));
+      });
+
+    return () => {
+      channel.stopListening('.transaction.updated');
+      window.Echo.leave('transactions.admin');
+    };
+  }, [user?.role]);
 
   useEffect(() => {
     const getTitleFromPath = (pathname) => {
@@ -255,7 +271,7 @@ export default function DefaultLayout() {
           >
             <DrawerHeader>
               <Avatar
-                src={'http://localhost:8000/storage/' + user.avatar}
+                src={user?.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined}
                 sx={{ width: 44, height: 44, fontSize: 14, m: 'auto' }}
               >
                 {!user.avatar && getInitials(user.name)}

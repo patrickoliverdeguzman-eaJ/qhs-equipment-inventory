@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStateContext } from '../Context/ContextProvider';
-import axiosClient from '../axiosClient';
+import axiosClient, { assetUrl } from '../axiosClient';
 import {
   Container,
   Box,
@@ -60,7 +60,7 @@ export default function Profile() {
         address: user.address || '',
       });
       if (user.avatar) {
-        setPreviewImage(`${import.meta.env.VITE_APP_URL || 'http://127.0.0.1:8000'}/storage/${user.avatar}`);
+        setPreviewImage(assetUrl(`/storage/${user.avatar}`));
       }
     }
   }, [user]);
@@ -201,7 +201,7 @@ export default function Profile() {
             <Box sx={{ position: 'relative' }}>
               <Avatar
                 alt={user?.name}
-                src={user?.avatar ? `${import.meta.env.VITE_APP_URL || 'http://127.0.0.1:8000'}/storage/${user.avatar}` : ''}
+                src={user?.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined}
                 sx={{
                   width: 120,
                   height: 120,

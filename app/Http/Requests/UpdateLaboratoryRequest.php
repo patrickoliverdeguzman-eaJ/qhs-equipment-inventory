@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateLaboratoryRequest extends FormRequest
@@ -11,13 +12,13 @@ class UpdateLaboratoryRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('update', $this->route('laboratory')) === true;
     }
 
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -25,9 +26,9 @@ class UpdateLaboratoryRequest extends FormRequest
             'name' => 'sometimes|string|max:255',
             'location' => 'sometimes|string|max:255',
             'description' => 'sometimes|string|max:255',
-            'custodianID' => 'nullable|exists:users,id',
-            'isActive' => 'sometimes |nullable|string',
-            'gallery' => 'sometimes | nullable |image|mimes:jpeg,png,jpg,gif|max:2048',
+            'custodianID' => 'nullable|integer|exists:users,id',
+            'isActive' => 'sometimes|boolean',
+            'gallery' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,webp|max:4096',
         ];
     }
 }

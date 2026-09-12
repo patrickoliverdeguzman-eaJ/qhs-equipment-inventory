@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import axiosClient from "../../axiosClient";
+import axiosClient, { assetUrl } from "../../axiosClient";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import Button from "@mui/material/Button";
 
@@ -29,7 +29,7 @@ export default function LaboratoryForm() {
           setLoading(false);
           setLaboratory(data);
           setPreviewImage(
-            data.gallery ? `http://localhost:8000/storage/` + data.gallery : null);
+            data.gallery ? assetUrl(`/storage/${data.gallery}`) : null);
         })
         .catch(() => {
           setLoading(false);
@@ -166,7 +166,7 @@ export default function LaboratoryForm() {
               {(previewImage || laboratory.gallery) && (
                 <div style={{ marginTop: "10px" }}>
                   <img
-                    src={previewImage || `http://127.0.0.1:8000/storage/${laboratory.gallery}`}
+                    src={previewImage || assetUrl(`/storage/${laboratory.gallery}`)}
                     alt="Preview"
                     style={{ width: "100px", height: "100px", objectFit: "cover" }}
                   />

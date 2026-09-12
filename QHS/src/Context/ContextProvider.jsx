@@ -1,51 +1,72 @@
-import { createContext, useState, useEffect,useContext } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import axiosClient from '../axiosClient';
 
-const StateContext = createContext({
-    user: null,
-    token: null,
-    setUser: () => {},
-    setToken: () => {},
-});
-
-export const ContextProvider = ({ children }) => {
-    // Initialize user and token from localStorage (if available)
-    const [user, setUser] = useState(() => {
-        const storedUser = localStorage.getItem("USER");
-        return storedUser ? JSON.parse(storedUser) : null;
-    });
-    const [token, _setToken] = useState(localStorage.getItem("ACCESS_TOKEN"));
-
-    // Update localStorage whenever token changes
-    const setToken = (token) => {
-        _setToken(token);
-        if (token) {
-            localStorage.setItem("ACCESS_TOKEN", token);
-        } else {
-            localStorage.removeItem("ACCESS_TOKEN");
-        }
-    };
-
-    // Update localStorage whenever user changes
-    useEffect(() => {
-        if (user) {
-            localStorage.setItem("USER", JSON.stringify(user));
-        } else {
-            localStorage.removeItem("USER");
-        }
-    }, [user]);
-
-    return (
-        <StateContext.Provider
-            value={{
-                user,
-                token,
-                setUser,
-                setToken,
-            }}
-        >
-            {children}
-        </StateContext.Provider>
-    );
+const readStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('USER')) || null;
+  } catch {
+    localStorage.removeItem('USER');
+    return null;
+  }
 };
 
-export const useStateContext = () => useContext(StateContext);
+const StateContext = createContext(null);
+
+export const ContextProvider = ({ children }) => {
+  const [user, setUserState] = useState(readStoredUser);
+  const [token, setTokenState] = useState(() => localStorage.getItem('ACCESS_TOKEN'));
+  const [initializing, setInitializing] = useState(Boolean(token));
+
+  const setUser = (nextUser) => {
+    setUserState(nextUser);
+    if (nextUser) localStorage.setItem('USER', JSON.stringify(nextUser));
+    else localStorage.removeItem('USER');
+  };
+
+  const setToken = (nextToken) => {
+    setTokenState(nextToken);
+    if (nextToken) localStorage.setItem('ACCESS_TOKEN', nextToken);
+    else {
+      localStorage.removeItem('ACCESS_TOKEN');
+      setUser(null);
+    }
+  };
+
+  useEffect(() => {
+    const expire = () => {
+      setTokenState(null);
+      setUser(null);
+      setInitializing(false);
+    };
+    window.addEventListener('qhs:auth-expired', expire);
+    return () => window.removeEventListener('qhs:auth-expired', expire);
+  }, []);
+
+  useEffect(() => {
+    if (!token) {
+      setInitializing(false);
+      return;
+    }
+
+    let active = true;
+    axiosClient.get('/user')
+      .then(({ data }) => active && setUser(data))
+      .catch(() => active && setToken(null))
+      .finally(() => active && setInitializing(false));
+
+    return () => { active = false; };
+  }, [token]);
+
+  const value = useMemo(
+    () => ({ user, token, initializing, setUser, setToken }),
+    [user, token, initializing],
+  );
+
+  return <StateContext.Provider value={value}>{children}</StateContext.Provider>;
+};
+
+export const useStateContext = () => {
+  const context = useContext(StateContext);
+  if (!context) throw new Error('useStateContext must be used inside ContextProvider.');
+  return context;
+};

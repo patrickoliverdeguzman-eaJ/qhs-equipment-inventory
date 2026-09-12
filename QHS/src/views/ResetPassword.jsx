@@ -1,78 +1,86 @@
-import { useRef, useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import axiosClient from "../axiosClient";
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import axiosClient from '../axiosClient';
 
 export default function ResetPassword() {
-    const passwordRef = useRef();
-    const passwordConfirmationRef = useRef();
-    const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(null);
-    const navigate = useNavigate();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const query = new URLSearchParams(location.search);
+  const token = query.get('token');
+  const email = query.get('email');
+  const hasValidLink = Boolean(token && email);
 
-    const location = useLocation();
-    const queryParams = new URLSearchParams(location.search);
-    const token = queryParams.get("token");
-    const email = queryParams.get("email");
+  const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [error, setError] = useState(hasValidLink ? '' : 'This password reset link is incomplete or invalid.');
+  const [success, setSuccess] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-    // Redirect to login after success message is shown
-    useEffect(() => {
-        if (success) {
-            const timer = setTimeout(() => {
-                navigate("/auth");
-            }, 2000); // Redirect after 2 seconds
-            return () => clearTimeout(timer);
-        }
-    }, [success, navigate]);
+  useEffect(() => {
+    if (!success) return undefined;
+    const timer = window.setTimeout(() => navigate('/auth', { replace: true }), 2000);
+    return () => window.clearTimeout(timer);
+  }, [success, navigate]);
 
-    const Submit = (ev) => {
-        ev.preventDefault();
-        const payload = {
-            email: email,
-            token: token,
-            password: passwordRef.current.value,
-            password_confirmation: passwordConfirmationRef.current.value,
-        };
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!hasValidLink || submitting) return;
 
-        axiosClient
-            .post("/reset-password", payload)
-            .then(() => {
-                setError(null);
-                setSuccess("Password has been reset successfully. Redirecting to login...");
-            })
-            .catch((err) => {
-                const response = err.response;
-                if (response && response.status === 422) {
-                    const errorMessage = response.data?.message || "Something went wrong. Please check your input and try again.";
-                    setError(errorMessage);
-                } else {
-                    setError("Something went wrong. Please try again later.");
-                }
-            });
-    };
+    setSubmitting(true);
+    setError('');
 
-    return (
-        <div className="login-signup-form animated fadeInDown">
-            <div className="form">
-                <h1 className="title">Reset Password</h1>
-                {error && <div className="alert alert-danger">{error}</div>}
-                {success && <div className="alert alert-success">{success}</div>}
-                <form onSubmit={Submit}>
-                    <input
-                        ref={passwordRef}
-                        type="password"
-                        placeholder="New Password"
-                    />
-                    <input
-                        ref={passwordConfirmationRef}
-                        type="password"
-                        placeholder="Confirm New Password"
-                    />
-                    <button className="btn btn-block">Reset Password</button>
-                    <p className="message">
-                        Remember your password? <Link to="/auth">Login</Link>
-                    </p>
-                </form>
-            </div>
-        </div>
-    );
+    try {
+      const { data } = await axiosClient.post('/reset-password', {
+        email,
+        token,
+        password,
+        password_confirmation: passwordConfirmation,
+      });
+      setSuccess(`${data.message} Redirecting to sign in…`);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'The password could not be reset.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="auth-card animated fadeInDown">
+      <header className="auth-card-header">
+        <p className="auth-eyebrow">Secure recovery</p>
+        <h2>Choose a new password</h2>
+        <p>Use at least eight characters, including letters and numbers.</p>
+      </header>
+      {error && <div className="alert" role="alert">{error}</div>}
+      {success && <div className="alert alert-success" role="status">{success}</div>}
+      <form onSubmit={submit}>
+        <label htmlFor="reset-password">New password</label>
+        <input
+          id="reset-password"
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          autoComplete="new-password"
+          minLength={8}
+          required
+          disabled={!hasValidLink || submitting}
+        />
+        <label htmlFor="reset-password-confirmation">Confirm new password</label>
+        <input
+          id="reset-password-confirmation"
+          type="password"
+          value={passwordConfirmation}
+          onChange={(event) => setPasswordConfirmation(event.target.value)}
+          autoComplete="new-password"
+          minLength={8}
+          required
+          disabled={!hasValidLink || submitting}
+        />
+        <button className="btn btn-block" disabled={!hasValidLink || submitting || Boolean(success)}>
+          {submitting ? 'Resetting…' : 'Reset password'}
+        </button>
+        <p className="message">Remember your password? <Link to="/auth">Sign in</Link></p>
+      </form>
+    </div>
+  );
 }

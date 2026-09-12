@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, memo } from "react";
 import { Link } from "react-router-dom";
-import axiosClient from "../../axiosClient";
+import axiosClient, { backendBaseUrl } from "../../axiosClient";
 import { useStateContext } from "../../Context/ContextProvider";
 import Select from "react-select";
-import * as XLSX from "xlsx";
+import { downloadCsv, parseCsv } from '../../csv';
 
 // MUI Components
 import {
@@ -56,7 +56,7 @@ export default memo(function Equipment() {
   const isCustodian = user?.role === 'custodian';
   const [custodianLabId, setCustodianLabId] = useState(null);
 
-  const BASE_URL = import.meta.env.VITE_APP_URL || "http://127.0.0.1:8000";
+  const BASE_URL = backendBaseUrl;
 
   // Safe image fallback
   const getImageSrc = (imagePath) => {
@@ -277,7 +277,7 @@ export default memo(function Equipment() {
   ];
 
   /* ==================== IMPORT LOGIC ==================== */
-  const handleFileSelect = (e) => {
+  const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -286,13 +286,8 @@ export default memo(function Equipment() {
     setValidationErrors([]);
     setIsFileValid(false);
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      try {
-        const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet);
+    try {
+        const json = parseCsv(await file.text());
 
         if (json.length === 0) {
           setImportStatus("Error: File is empty");
@@ -320,24 +315,17 @@ export default memo(function Equipment() {
         } else {
           setImportStatus(`Found ${errors.length} row(s) with errors.`);
         }
-      } catch (err) {
-        setImportStatus("Error: Invalid or corrupted Excel file");
-      }
-    };
-    reader.readAsArrayBuffer(file);
+    } catch {
+      setImportStatus("Error: Invalid or corrupted CSV file");
+    }
   };
 
   const handleImport = async () => {
     if (!importFile || !isFileValid) return;
 
     setImportStatus("Uploading...");
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(sheet);
+    try {
+        const json = parseCsv(await importFile.text());
 
         await axiosClient.post("/equipment/import", { data: json });
         setImportStatus(`Success! Imported ${json.length} items.`);
@@ -349,13 +337,10 @@ export default memo(function Equipment() {
           setValidationErrors([]);
           setIsFileValid(false);
         }, 3000);
-      } catch (err) {
-        console.error('Import error:', err);
-        const errorMsg = err.response?.data?.message || err.message || 'Import failed on server';
-        setImportStatus(`Import failed: ${errorMsg}`);
-      }
-    };
-    reader.readAsArrayBuffer(importFile);
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message || 'Import failed on server';
+      setImportStatus(`Import failed: ${errorMsg}`);
+    }
   };
 
   const downloadTemplate = () => {
@@ -364,11 +349,7 @@ export default memo(function Equipment() {
       { name: "Microscope", description: "High quality", laboratory_id: labId, category_ids: "1,2", quantity: 10, is_active: true },
       { name: "Beaker Set", description: "Glass", laboratory_id: labId, category_ids: "3", quantity: 20, is_active: true }
     ];
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Equipment");
-    ws['!cols'] = [{ wch: 20 }, { wch: 30 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 10 }];
-    XLSX.writeFile(wb, "equipment_import_template.xlsx");
+    downloadCsv('equipment_import_template.csv', template);
   };
 
   // Export currently selected equipment items to Excel (only when items are selected)
@@ -392,10 +373,7 @@ export default memo(function Equipment() {
         isActive: item.isActive ? 'Yes' : 'No'
       }));
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Equipment');
-    XLSX.writeFile(wb, `equipment_selected_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    downloadCsv(`equipment_selected_export_${new Date().toISOString().slice(0, 10)}.csv`, rows);
   };
 
   return (
@@ -670,10 +648,10 @@ export default memo(function Equipment() {
         <DialogTitle>Import Equipment from Excel</DialogTitle>
         <DialogContent>
           <Button variant="outlined" startIcon={<DownloadIcon />} onClick={downloadTemplate} fullWidth sx={{ mb: 2 }}>
-            Download Import Template (.xlsx)
+            Download Import Template (.csv)
           </Button>
 
-          <Input type="file" accept=".xlsx,.xls" onChange={handleFileSelect} fullWidth sx={{ mb: 2 }} />
+          <Input type="file" inputProps={{ accept: '.csv,text/csv' }} onChange={handleFileSelect} fullWidth sx={{ mb: 2 }} />
 
           {importStatus && (
             <Alert severity={isFileValid ? "success" : importStatus.includes("Error") ? "error" : "info"} sx={{ mb: 2 }}>

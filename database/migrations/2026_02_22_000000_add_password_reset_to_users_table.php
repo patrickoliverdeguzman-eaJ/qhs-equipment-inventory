@@ -23,8 +23,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('reset_token');
-            $table->dropColumn('reset_token_expires_at');
+            $table->dropUnique(['reset_token']);
+            $table->dropColumn(['reset_token', 'reset_token_expires_at']);
         });
     }
 };

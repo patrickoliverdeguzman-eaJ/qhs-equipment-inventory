@@ -1,5 +1,6 @@
 import React, { useEffect, useState, memo } from 'react';
 import axiosClient from '../../axiosClient';
+import { writePrintDocument } from '../../printDocument';
 import {
   Box, Button, Paper, Typography, Grid, Table, TableHead, TableRow, TableCell, TableBody,
   CircularProgress, Alert, Card, CardContent, Tabs, Tab, TextField, useTheme, useMediaQuery, Chip
@@ -341,8 +342,7 @@ export default memo(function TransactionReports() {
         </body>
       </html>`;
 
-    win.document.write(html);
-    win.document.close();
+    writePrintDocument(win, html);
     win.focus();
     win.print();
   };

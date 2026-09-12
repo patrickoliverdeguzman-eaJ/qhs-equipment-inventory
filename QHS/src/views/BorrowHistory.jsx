@@ -53,13 +53,11 @@ export default function BorrowHistory() {
     // Set up Reverb listener for real-time updates if Echo is available
     if (window.Echo) {
       try {
-        window.Echo.channel('transactions')
-          .listen('TransactionUpdated', (event) => {
+        window.Echo.private(`transactions.user.${user.id}`)
+          .listen('.transaction.updated', () => {
             fetchTransactions();
           });
-      } catch (error) {
-        console.log('Reverb not available, using polling fallback');
-      }
+      } catch { /* Polling remains available. */ }
     }
 
     // Auto-refresh every 10 seconds for fallback
@@ -72,11 +70,11 @@ export default function BorrowHistory() {
       clearInterval(interval);
       if (window.Echo) {
         try {
-          window.Echo.leaveChannel('transactions');
-        } catch (e) { }
+          window.Echo.leave(`transactions.user.${user.id}`);
+        } catch { /* The connection may already be closed. */ }
       }
     };
-  }, [token, navigate]);
+  }, [token, user?.id, navigate]);
 
   const fetchTransactions = async () => {
     try {

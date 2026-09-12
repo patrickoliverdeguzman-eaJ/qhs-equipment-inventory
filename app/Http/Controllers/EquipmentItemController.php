@@ -2,159 +2,101 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\EquipmentItemResource;
+use App\Enums\EquipmentCondition;
 use App\Http\Requests\StoreItemRequest;
 use App\Http\Requests\UpdateItemRequest;
-use App\Models\EquipmentItem;
+use App\Http\Resources\EquipmentItemResource;
 use App\Models\Equipment;
+use App\Models\EquipmentItem;
 use App\Traits\ActionLogger;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class EquipmentItemController extends Controller
 {
     use ActionLogger;
-    /**
-     * Display a listing of all items (optional)
-     */
-    public function index()
+
+    public function index(Request $request)
     {
-        $items = EquipmentItem::orderBy('id', 'desc')->get();
-        return EquipmentItemResource::collection($items);
+        $query = EquipmentItem::query()->with('equipment:id,laboratory_id,isActive');
+        $user = $request->user();
+
+        if ($user->isCustodian()) {
+            $query->whereHas('equipment.laboratory.custodians', fn (Builder $builder) => $builder->whereKey($user->id));
+        } elseif ($user->role === 'user') {
+            $query->whereHas('equipment', fn (Builder $builder) => $builder->where('isActive', true));
+        }
+
+        return EquipmentItemResource::collection($query->latest('id')->limit(2000)->get());
     }
 
-    /**
-     * Store a newly created item
-     */
     public function store(StoreItemRequest $request)
     {
-        $data = $request->validated();
+        $data = $request->safe()->except('isBorrowed');
 
-        // Critical: Verify that the equipment actually exists
-        $equipment = Equipment::find($data['equipment_id']);
+        $item = DB::transaction(function () use ($data) {
+            $equipment = Equipment::query()->lockForUpdate()->findOrFail($data['equipment_id']);
+            $data['unit_id'] = EquipmentItem::generateUnitId($equipment->id);
+            $data['isBorrowed'] = false;
 
-        if (!$equipment) {
-            return response()->json([
-                'message' => 'The selected equipment does not exist.',
-                'errors' => [
-                    'equipment_id' => ['Invalid equipment selected.']
-                ]
-            ], 422);
-        }
+            return EquipmentItem::create($data);
+        });
 
-        // Custodian restriction: can only add items to their assigned laboratory's equipment
-        if (auth()->user()->role === 'custodian') {
-            $lab = \App\Models\Laboratory::where('custodianID', auth()->id())->first();
-            if (!$lab || $equipment->laboratory_id !== $lab->id) {
-                return response()->json(['message' => 'Unauthorized: equipment belongs to a different laboratory.'], 403);
-            }
-        }
+        $this->logAction('equipment_item_created', [
+            'item_id' => $item->id,
+            'equipment_id' => $item->equipment_id,
+        ]);
 
-        // Safely generate unit_id
-        try {
-            $data['unit_id'] = EquipmentItem::generateUnitId($data['equipment_id']);
-        } catch (\Exception $e) {
-            Log::error('Failed to generate unit_id for equipment_id: ' . $data['equipment_id'], [
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'message' => 'Failed to generate unit ID. Please try again.'
-            ], 500);
-        }
-
-        // Create the item
-        $item = EquipmentItem::create($data);
-
-        $this->logAction('equipment_item_created', ['item_id' => $item->id, 'equipment_id' => $item->equipment_id]);
-
-        return response()->json(
-            new EquipmentItemResource($item),
-            201
-        );
+        return (new EquipmentItemResource($item))->response()->setStatusCode(201);
     }
 
-    /**
-     * Display the specified item
-     */
-    public function show($id)
+    public function show(Request $request, EquipmentItem $item)
     {
-        $item = EquipmentItem::find($id);
-
-        if (!$item) {
-            return response()->json([
-                'message' => 'Equipment item not found'
-            ], 404);
-        }
+        $this->authorize('manageItems', $item->equipment);
 
         return new EquipmentItemResource($item);
     }
 
-    /**
-     * Update the specified item
-     */
-    public function update(UpdateItemRequest $request, $id)
+    public function update(UpdateItemRequest $request, EquipmentItem $item)
     {
-        $item = EquipmentItem::find($id);
-
-        if (!$item) {
-            return response()->json([
-                'message' => 'Equipment item not found'
-            ], 404);
+        if ($item->isBorrowed && $request->filled('condition') && $request->string('condition')->toString() !== $item->condition) {
+            throw ValidationException::withMessages([
+                'condition' => ['Return this unit before changing its condition.'],
+            ]);
         }
 
-        // Custodian restriction: can only edit items belonging to their assigned laboratory's equipment
-        if (auth()->user()->role === 'custodian') {
-            $equipment = Equipment::find($item->equipment_id);
-            $lab = \App\Models\Laboratory::where('custodianID', auth()->id())->first();
-            if (!$lab || !$equipment || $equipment->laboratory_id !== $lab->id) {
-                return response()->json(['message' => 'Unauthorized: equipment belongs to a different laboratory.'], 403);
-            }
-        }
-
-        $data = $request->validated();
-        $item->update($data);
-
+        $item->update($request->safe()->only('condition'));
         $this->logAction('equipment_item_updated', ['item_id' => $item->id]);
 
-        return new EquipmentItemResource($item);
+        return new EquipmentItemResource($item->fresh());
     }
 
-    /**
-     * Remove the specified item
-     */
-    public function destroy($id)
+    public function destroy(EquipmentItem $item)
     {
-        $item = EquipmentItem::find($id);
-
-        if (!$item) {
-            return response()->json([
-                'message' => 'Equipment item not found'
-            ], 404);
+        if ($item->isBorrowed || $item->transactions()->exists()) {
+            throw ValidationException::withMessages([
+                'item' => ['This unit has borrowing history and cannot be deleted.'],
+            ]);
         }
 
         $item->delete();
-
         $this->logAction('equipment_item_deleted', ['item_id' => $item->id]);
 
-        return response()->json(null, 204);
+        return response()->noContent();
     }
 
-    /**
-     * Get available (not borrowed) items for a specific equipment
-     * Used in borrowing/return forms
-     */
-   public function availableItems(Equipment $equipment)
+    public function availableItems(Request $request, Equipment $equipment)
     {
-        $items = EquipmentItem::where('equipment_id', $equipment->id)
-            ->where('isBorrowed', false)
-            ->whereIn('condition', ['New', 'Good', 'Fair', 'Poor'])
-            ->select('id', 'unit_id', 'condition')
-            ->orderBy('unit_id')
-            ->get();
+        $this->authorize('view', $equipment);
 
-        return response()->json([
-            'data' => $items
-        ]);
+        return EquipmentItemResource::collection(
+            $equipment->items()
+                ->where('isBorrowed', false)
+                ->whereNotIn('condition', EquipmentCondition::unavailableValues())
+                ->orderBy('unit_id')
+                ->get()
+        );
     }
 }

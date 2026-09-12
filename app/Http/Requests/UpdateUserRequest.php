@@ -2,9 +2,10 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Validation\Rule; // Import the Rule class
 
 class UpdateUserRequest extends FormRequest
 {
@@ -13,51 +14,33 @@ class UpdateUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->isAdmin() === true;
     }
 
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
-        if(request()->isMethod('post')) {
-            return [
-                'name' => 'sometimes|string|max:255',
+        $target = $this->route('user');
+
+        return [
+            'name' => 'sometimes|string|max:255',
             'email' => [
                 'sometimes',
                 'email',
                 'max:255',
-                Rule::unique('users')->ignore($this->user->id), // Ignore the current users email
+                Rule::unique('users')->ignore($target),
             ],
-            'role' => 'sometimes|string|max:255',
+            'role' => 'sometimes|in:admin,custodian,user',
             'isActive' => 'sometimes|boolean',
-            'avatar' => 'sometimes | nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'avatar' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,webp|max:4096',
             'password' => [
                 'sometimes',
-                Password::min(8)->letters(),
+                Password::min(8)->letters()->numbers(),
             ],
-            ];
-        } else {
-            return [
-               'name' => 'sometimes|string|max:255',
-            'email' => [
-                'sometimes',
-                'email',
-                'max:255',
-                Rule::unique('users')->ignore($this->user->id), // Ignore the current users email
-            ],
-            'role' => 'sometimes|string|max:255',
-            'isActive' => 'sometimes|boolean',
-            'avatar' => ' sometimes | nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
-            'password' => [
-                'sometimes',
-                Password::min(8)->letters(),
-            ],
-            ];
-        }
-        
+        ];
     }
 }

@@ -35,7 +35,7 @@ import {
   Favorite as FavoriteIcon,
   FavoriteBorder as FavoriteBorderIcon,
 } from '@mui/icons-material';
-import axiosClient from '../axiosClient';
+import axiosClient, { assetUrl, backendBaseUrl } from '../axiosClient';
 
 export default function UserLab() {
   const theme = useTheme();
@@ -210,7 +210,7 @@ export default function UserLab() {
 
   const getImageSrc = (imagePath) => {
     // Match the logic from admin equipment.jsx
-    const BASE_URL = import.meta.env.VITE_APP_URL || 'http://127.0.0.1:8000';
+    const BASE_URL = backendBaseUrl;
     if (!imagePath || imagePath.trim() === '' || imagePath === 'null' || imagePath === null) {
       return `${BASE_URL}/storage/itemImage/No-image-default.png`;
     }
@@ -344,7 +344,7 @@ export default function UserLab() {
                       }}
                       onError={(e) => {
                         // Fallback if image fails to load
-                        e.target.src = `${import.meta.env.VITE_APP_URL || 'http://127.0.0.1:8000'}/storage/itemImage/No-image-default.png`;
+                        e.target.src = assetUrl(null);
                       }}
                     />
                     <Box

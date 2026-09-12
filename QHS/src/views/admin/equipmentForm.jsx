@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import axiosClient from "../../axiosClient";
+import axiosClient, { backendBaseUrl } from "../../axiosClient";
+import { useStateContext } from "../../Context/ContextProvider";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
@@ -48,6 +49,8 @@ export default function EquipmentForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
+  const { user } = useStateContext();
+  const equipmentPath = user?.role === 'custodian' ? '/custodian/equipment' : '/admin/equipment';
 
   const [equipment, setEquipment] = useState({
     id: null,
@@ -71,7 +74,7 @@ export default function EquipmentForm() {
   // Track if we want to delete the current image
   const [removeImage, setRemoveImage] = useState(false);
 
-  const BASE_URL = import.meta.env.VITE_APP_URL || "http://localhost:8000";
+  const BASE_URL = backendBaseUrl;
   const defaultImage = `${BASE_URL}/storage/itemImage/No-image-default.png`;
 
   const getImageUrl = (image) => {
@@ -179,7 +182,7 @@ export default function EquipmentForm() {
           headers: { "Content-Type": "multipart/form-data" }
         });
       }
-      navigate("/admin/equipment");
+      navigate(equipmentPath);
     } catch (err) {
       if (err.response?.status === 422) {
         setErrors(err.response.data.errors);
@@ -193,7 +196,7 @@ export default function EquipmentForm() {
 
   return (
     <Box sx={{ maxWidth: 800, mx: "auto", p: { xs: 2, sm: 3 } }}>
-      <Button component={Link} to="/admin/equipment" startIcon={<ArrowBackIcon />} variant="outlined" sx={{ mb: 3 }}>
+      <Button component={Link} to={equipmentPath} startIcon={<ArrowBackIcon />} variant="outlined" sx={{ mb: 3 }}>
         Back to Equipment
       </Button>
 
@@ -344,7 +347,7 @@ export default function EquipmentForm() {
             </Box>
 
             <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
-              <Button component={Link} to="/admin/equipment" variant="outlined" disabled={submitting}>
+              <Button component={Link} to={equipmentPath} variant="outlined" disabled={submitting}>
                 Cancel
               </Button>
               <Button type="submit" variant="contained" size="large" disabled={submitting}>

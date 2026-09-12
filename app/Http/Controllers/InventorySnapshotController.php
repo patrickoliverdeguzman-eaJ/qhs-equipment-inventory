@@ -2,228 +2,204 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\InventorySnapshot;
 use App\Models\Equipment;
-use App\Models\Laboratory;
+use App\Models\InventorySnapshot;
 use App\Models\SystemSetting;
-use App\Models\Transaction;
+use App\Services\InventorySnapshotService;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class InventorySnapshotController extends Controller
 {
-    /**
-     * Get snapshots for a date range with optional laboratory filter
-     */
+    public function __construct(private readonly InventorySnapshotService $snapshots) {}
+
     public function getSnapshotsByDateRange(Request $request)
     {
-        $startDate = $request->get('start_date');
-        $endDate = $request->get('end_date');
-        $laboratoryId = $request->get('laboratory_id');
-
-        $query = InventorySnapshot::whereBetween('snapshot_date', [$startDate, $endDate])
+        $validated = $this->validateSnapshotRange($request, withLaboratory: true);
+        $query = InventorySnapshot::query()
+            ->whereBetween('snapshot_date', [$validated['start_date'], $validated['end_date']])
             ->with(['equipment', 'laboratory'])
-            ->orderBy('snapshot_date', 'desc')
-            ->orderBy('equipment_id', 'asc');
+            ->orderByDesc('snapshot_date')
+            ->orderBy('equipment_id');
 
-        // If user is custodian, filter by their laboratory
-        if (auth()->user()->role === 'custodian') {
-            $lab = Laboratory::where('custodianID', auth()->id())->first();
-            if ($lab) {
-                $query->where('laboratory_id', $lab->id);
-            } else {
-                return response()->json([], 200); // Return empty if no lab assigned
-            }
-        } elseif ($laboratoryId) {
-            $query->where('laboratory_id', $laboratoryId);
-        }
+        $laboratoryId = isset($validated['laboratory_id'])
+            ? (int) $validated['laboratory_id']
+            : null;
+        $this->scopeToUser($query, $request, $laboratoryId);
 
-        return response()->json($query->get());
+        return response()->json($query->limit(50_000)->get());
     }
 
-    /**
-     * Get trend data for a specific equipment
-     */
     public function getEquipmentTrend(Request $request, Equipment $equipment)
     {
-        $startDate = $request->get('start_date');
-        $endDate = $request->get('end_date');
+        $validated = $this->validateSnapshotRange($request);
 
-        $data = InventorySnapshot::where('equipment_id', $equipment->id)
-            ->whereBetween('snapshot_date', [$startDate, $endDate])
+        if ($request->user()->isCustodian() && ! $request->user()->managesLaboratory($equipment->laboratory_id)) {
+            abort(403);
+        }
+
+        $data = InventorySnapshot::query()
+            ->where('equipment_id', $equipment->id)
+            ->whereBetween('snapshot_date', [$validated['start_date'], $validated['end_date']])
             ->with('laboratory')
-            ->orderBy('snapshot_date', 'asc')
+            ->orderBy('snapshot_date')
             ->get()
-            ->groupBy(function ($item) {
-                return $item->laboratory->name;
-            });
+            ->groupBy(fn (InventorySnapshot $snapshot) => $snapshot->laboratory->name);
 
         $result = [];
         foreach ($data as $labName => $snapshots) {
-            $result[$labName] = $snapshots->map(function ($snapshot) {
-                return [
-                    'date' => $snapshot->snapshot_date->format('Y-m-d'),
-                    'total_items' => $snapshot->total_items,
-                    'borrowed_count' => $snapshot->borrowed_count,
-                    'available_count' => $snapshot->available_count,
-                ];
-            })->values();
+            $result[$labName] = $snapshots->map(fn (InventorySnapshot $snapshot) => [
+                'date' => $snapshot->snapshot_date->format('Y-m-d'),
+                'total_items' => $snapshot->total_items,
+                'borrowed_count' => $snapshot->borrowed_count,
+                'available_count' => $snapshot->available_count,
+            ])->values();
         }
 
         return response()->json($result);
     }
 
-    /**
-     * Export snapshots as CSV
-     */
     public function exportCSV(Request $request)
     {
         try {
-            $startDate = $request->get('start_date');
-            $endDate = $request->get('end_date');
-            $laboratoryId = $request->get('laboratory_id');
+            $validated = $this->validateSnapshotRange($request, withLaboratory: true);
+            $query = DB::table('inventory_snapshots as snapshots')
+                ->join('equipment', 'equipment.id', '=', 'snapshots.equipment_id')
+                ->join('laboratories', 'laboratories.id', '=', 'snapshots.laboratory_id')
+                ->whereBetween('snapshots.snapshot_date', [$validated['start_date'], $validated['end_date']])
+                ->select([
+                    'snapshots.snapshot_date',
+                    'laboratories.name as laboratory_name',
+                    'equipment.name as equipment_name',
+                    'snapshots.total_items',
+                    'snapshots.borrowed_count',
+                    'snapshots.available_count',
+                ])
+                ->orderByDesc('snapshots.snapshot_date')
+                ->orderBy('laboratories.name')
+                ->orderBy('equipment.name');
 
-            if (!$startDate || !$endDate) {
-                return response()->json(['error' => 'Start date and end date are required'], 400);
+            if ($request->user()->isCustodian()) {
+                $query->whereExists(function ($subquery) use ($request) {
+                    $subquery->selectRaw('1')
+                        ->from('custodian_laboratory')
+                        ->whereColumn('custodian_laboratory.laboratory_id', 'snapshots.laboratory_id')
+                        ->where('custodian_laboratory.user_id', $request->user()->id);
+                });
+            } elseif (! empty($validated['laboratory_id'])) {
+                $query->where('snapshots.laboratory_id', $validated['laboratory_id']);
             }
 
-            $query = InventorySnapshot::whereBetween('snapshot_date', [$startDate, $endDate])
-                ->with(['equipment', 'laboratory'])
-                ->orderBy('snapshot_date', 'desc');
-
-            if ($laboratoryId) {
-                $query->where('laboratory_id', $laboratoryId);
-            }
-
-            $snapshots = $query->get();
-
-            if ($snapshots->isEmpty()) {
+            $recordCount = (clone $query)->count();
+            if ($recordCount === 0) {
                 return response()->json(['error' => 'No snapshots found for the given date range'], 404);
             }
 
-            // CSV Headers
-            $headers = ['Date', 'Laboratory', 'Equipment', 'Total Items', 'Borrowed Count', 'Available Count'];
+            return response()->streamDownload(function () use ($query, $validated, $recordCount) {
+                $output = fopen('php://output', 'wb');
+                fwrite($output, "\xEF\xBB\xBF");
+                fputcsv($output, ['Inventory Snapshots Report']);
+                fputcsv($output, []);
+                fputcsv($output, ['Date', 'Laboratory', 'Equipment', 'Total Items', 'Borrowed Count', 'Available Count']);
 
-            // CSV Rows
-            $rows = $snapshots->map(function ($snapshot) {
-                return [
-                    $snapshot->snapshot_date->format('Y-m-d'),
-                    $snapshot->laboratory->name ?? 'Unknown',
-                    $snapshot->equipment->name ?? 'Unknown',
-                    $snapshot->total_items,
-                    $snapshot->borrowed_count,
-                    $snapshot->available_count,
-                ];
-            });
+                foreach ($query->cursor() as $snapshot) {
+                    $row = [
+                        $snapshot->snapshot_date,
+                        $snapshot->laboratory_name,
+                        $snapshot->equipment_name,
+                        $snapshot->total_items,
+                        $snapshot->borrowed_count,
+                        $snapshot->available_count,
+                    ];
+                    fputcsv($output, array_map(fn ($value) => $this->safeCsvValue($value), $row));
+                }
 
-            // Add summary
-            $summaryRows = [
-                [],
-                ['SUMMARY'],
-                ['Total Records', $snapshots->count()],
-                ['Date Range', "{$startDate} to {$endDate}"],
-            ];
+                fputcsv($output, []);
+                fputcsv($output, ['SUMMARY']);
+                fputcsv($output, ['Total Records', $recordCount]);
+                fputcsv($output, ['Date Range', "{$validated['start_date']} to {$validated['end_date']}"]);
+                fclose($output);
+            }, 'inventory_snapshots_'.now()->format('Y-m-d').'.csv', [
+                'Content-Type' => 'text/csv; charset=utf-8',
+            ]);
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            Log::error('Inventory snapshot export failed.', ['exception' => $exception]);
 
-            // CSV Content
-            $csvContent = [
-                ['Inventory Snapshots Report'],
-                [],
-                $headers,
-                ...$rows->map(fn($row) => array_map(fn($cell) => "\"$cell\"", $row)),
-                ...$summaryRows->map(fn($row) => array_map(fn($cell) => "\"$cell\"", $row)),
-            ];
-
-            $output = implode("\n", array_map(fn($row) => implode(',', $row), $csvContent));
-
-            return response($output)
-                ->header('Content-Type', 'text/csv; charset=utf-8')
-                ->header('Content-Disposition', 'attachment; filename="inventory_snapshots_' . date('Y-m-d') . '.csv"');
-        } catch (\Exception $e) {
-            \Log::error('Export CSV Error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to export CSV: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'The report could not be exported.'], 500);
         }
     }
 
-    /**
-     * Get current snapshot settings
-     */
     public function getSnapshotSettings()
     {
-        $time = SystemSetting::get('daily_inventory_snapshot_time', '23:59');
-        return response()->json(['snapshot_time' => $time]);
+        return response()->json([
+            'snapshot_time' => SystemSetting::get('daily_inventory_snapshot_time', '23:59'),
+        ]);
     }
 
-    /**
-     * Update snapshot settings
-     */
     public function updateSnapshotSettings(Request $request)
     {
-        $request->validate(['snapshot_time' => 'required|date_format:H:i']);
-        
-        SystemSetting::set('daily_inventory_snapshot_time', $request->snapshot_time);
-        
+        $validated = $request->validate(['snapshot_time' => ['required', 'date_format:H:i']]);
+        SystemSetting::set('daily_inventory_snapshot_time', $validated['snapshot_time']);
+
         return response()->json(['message' => 'Settings updated successfully']);
     }
 
-    /**
-     * Manually trigger a snapshot for all equipment and laboratories
-     */
     public function triggerSnapshot()
     {
         try {
-            $date = now()->toDateString();
-            $equipment = Equipment::all();
-            $laboratories = Laboratory::all();
+            $count = $this->snapshots->capture();
 
-            foreach ($equipment as $eq) {
-                foreach ($laboratories as $lab) {
-                    // Count total items for this equipment (which belongs to a lab)
-                    // Only count items if the equipment belongs to this lab
-                    if ($eq->laboratory_id != $lab->id) {
-                        continue;
-                    }
+            return response()->json(['message' => "Snapshot created with {$count} records."]);
+        } catch (\Throwable $exception) {
+            Log::error('Inventory snapshot trigger failed.', ['exception' => $exception]);
 
-                    // Count total items
-                    $items = DB::table('equipment_items')
-                        ->where('equipment_id', $eq->id)
-                        ->get(['id', 'isBorrowed', 'condition']);
-
-                    $total = $items->count();
-
-                    // Count borrowed items (not Damaged/Missing/Under Repair)
-                    $borrowed = $items->filter(function ($item) {
-                        return $item->isBorrowed && 
-                               !in_array($item->condition, ['Damaged', 'Missing', 'Under Repair']);
-                    })->count();
-
-                    // Count unavailable items (Damaged, Missing, Under Repair)
-                    $unavailable = $items->filter(function ($item) {
-                        return in_array($item->condition, ['Damaged', 'Missing', 'Under Repair']);
-                    })->count();
-
-                    // Available = total - borrowed - unavailable
-                    $available = max(0, $total - $borrowed - $unavailable);
-
-                    InventorySnapshot::updateOrCreate(
-                        [
-                            'snapshot_date' => $date,
-                            'equipment_id' => $eq->id,
-                            'laboratory_id' => $lab->id,
-                        ],
-                        [
-                            'total_items' => $total,
-                            'borrowed_count' => $borrowed,
-                            'available_count' => $available,
-                        ]
-                    );
-                }
-            }
-
-            return response()->json(['message' => 'Snapshot created successfully']);
-        } catch (\Exception $e) {
-            \Log::error('Trigger Snapshot Error: ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to create snapshot: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'The snapshot could not be created.'], 500);
         }
+    }
+
+    /** @return array<string, mixed> */
+    private function validateSnapshotRange(Request $request, bool $withLaboratory = false): array
+    {
+        $rules = [
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+        ];
+        if ($withLaboratory) {
+            $rules['laboratory_id'] = ['nullable', 'integer', 'exists:laboratories,id'];
+        }
+
+        $validated = $request->validate($rules);
+        if (Carbon::parse($validated['start_date'])->diffInDays(Carbon::parse($validated['end_date'])) > 366) {
+            throw ValidationException::withMessages([
+                'end_date' => ['Choose a date range of 366 days or less.'],
+            ]);
+        }
+
+        return $validated;
+    }
+
+    private function scopeToUser(Builder $query, Request $request, ?int $laboratoryId): void
+    {
+        if ($request->user()->isCustodian()) {
+            $query->whereHas(
+                'laboratory.custodians',
+                fn (Builder $builder) => $builder->whereKey($request->user()->id),
+            );
+        } elseif ($laboratoryId) {
+            $query->where('laboratory_id', $laboratoryId);
+        }
+    }
+
+    private function safeCsvValue(mixed $value): mixed
+    {
+        return is_string($value) && preg_match('/^[\s]*[=+\-@]/', $value)
+            ? "'{$value}"
+            : $value;
     }
 }

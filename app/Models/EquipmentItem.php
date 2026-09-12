@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class EquipmentItem extends Model
 {
@@ -35,7 +35,7 @@ class EquipmentItem extends Model
      */
     protected $attributes = [
         'isBorrowed' => false,
-        'condition'  => 'Good',
+        'condition' => 'Good',
     ];
 
     // Timestamps are enabled by default
@@ -49,9 +49,10 @@ class EquipmentItem extends Model
         return $this->belongsTo(Equipment::class);
     }
 
-    public function borrowLogs(): HasMany
+    public function transactions(): BelongsToMany
     {
-        return $this->hasMany(BorrowLog::class, 'equipment_item_id');
+        return $this->belongsToMany(Transaction::class, 'transaction_equipment_items')
+            ->withTimestamps();
     }
 
     // =============================================
@@ -73,8 +74,8 @@ class EquipmentItem extends Model
      */
     public static function generateUnitId(int $equipmentId): string
     {
-        // Get the highest number for this equipment
         $lastItem = static::where('equipment_id', $equipmentId)
+            ->whereNotNull('unit_id')
             ->orderByDesc('id')
             ->first();
 
@@ -82,7 +83,6 @@ class EquipmentItem extends Model
             ? ((int) substr($lastItem->unit_id, -4)) + 1
             : 1;
 
-        // Format: EQ01-0001
         return sprintf('EQ%02d-%04d', $equipmentId, $nextNumber);
     }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import axiosClient from "../../axiosClient";
-import * as XLSX from 'xlsx';
+import { downloadCsv } from '../../csv';
+import { writePrintDocument } from '../../printDocument';
 import {
   Paper, Grid, Typography, Button, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, CircularProgress, TextField,
   Collapse, IconButton, Box, Select, MenuItem, FormControl, InputLabel, Card, CardContent, Tabs, Tab, Chip, Dialog, DialogTitle, DialogContent, DialogActions, useTheme, Alert
@@ -242,10 +243,7 @@ export default function Inventory() {
       }
     }
 
-    const ws = XLSX.utils.json_to_sheet(flatRows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
-    XLSX.writeFile(wb, `inventory_report_${new Date().toISOString().slice(0,10)}.xlsx`);
+    downloadCsv(`inventory_report_${new Date().toISOString().slice(0,10)}.csv`, flatRows);
   };
 
   const printVisible = async () => {
@@ -316,8 +314,7 @@ export default function Inventory() {
         alert('Unable to open print window (popup blocked)');
         return;
       }
-      w.document.write(html);
-      w.document.close();
+      writePrintDocument(w, html);
       // allow styles to apply then print
       setTimeout(() => { w.print(); }, 300);
     } catch (err) {
@@ -505,8 +502,7 @@ export default function Inventory() {
         </body>
       </html>`;
 
-    win.document.write(html);
-    win.document.close();
+    writePrintDocument(win, html);
     win.focus();
     win.print();
   };

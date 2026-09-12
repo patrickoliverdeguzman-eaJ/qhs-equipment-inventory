@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('equipment_id');
             $table->string('condition');
-            $table->string('isBorrowed');
+            $table->boolean('isBorrowed')->default(false);
             $table->timestamps();
             // Foreign key constraint
             $table->foreign('equipment_id')->references('id')->on('equipment')->onDelete('cascade');

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 class ProfileController extends Controller
@@ -18,17 +20,13 @@ class ProfileController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'address' => 'nullable|string|max:500',
-            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:4096',
         ]);
+        $oldAvatar = null;
 
         // Handle avatar upload
         if ($request->hasFile('avatar')) {
-            // Delete old avatar if it exists
-            if ($user->avatar && \Storage::disk('public')->exists($user->avatar)) {
-                \Storage::disk('public')->delete($user->avatar);
-            }
-
-            // Store new avatar
+            $oldAvatar = $user->avatar;
             $path = $request->file('avatar')->store('avatars', 'public');
             $validated['avatar'] = $path;
         }
@@ -39,6 +37,10 @@ class ProfileController extends Controller
             'address' => $validated['address'] ?? $user->address,
             'avatar' => $validated['avatar'] ?? $user->avatar,
         ]);
+
+        if ($oldAvatar) {
+            Storage::disk('public')->delete($oldAvatar);
+        }
 
         return response()->json([
             'message' => 'Profile updated successfully',
@@ -55,11 +57,11 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'current_password' => 'required|string',
-            'new_password' => 'required|string|min:6|confirmed',
+            'new_password' => ['required', 'string', 'confirmed', Password::min(8)->letters()->numbers()],
         ]);
 
         // Check if current password is correct
-        if (!Hash::check($validated['current_password'], $user->password)) {
+        if (! Hash::check($validated['current_password'], $user->password)) {
             throw ValidationException::withMessages([
                 'current_password' => ['The provided password does not match our records.'],
             ]);
@@ -69,6 +71,7 @@ class ProfileController extends Controller
         $user->update([
             'password' => Hash::make($validated['new_password']),
         ]);
+        $user->tokens()->whereKeyNot($user->currentAccessToken()?->id)->delete();
 
         return response()->json([
             'message' => 'Password updated successfully',

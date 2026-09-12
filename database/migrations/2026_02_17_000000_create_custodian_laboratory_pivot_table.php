@@ -19,7 +19,7 @@ return new class extends Migration
 
             // Foreign keys
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('laboratory_id')->references('id')->on('laboratory')->onDelete('cascade');
+            $table->foreign('laboratory_id')->references('id')->on('laboratories')->onDelete('cascade');
 
             // Unique constraint to prevent duplicate assignments
             $table->unique(['user_id', 'laboratory_id']);

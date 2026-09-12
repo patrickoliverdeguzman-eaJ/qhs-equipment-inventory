@@ -17,6 +17,7 @@ return new class extends Migration
             $table->primary(['equipment_id', 'category_id']);
         });
     }
+
     /**
      * Reverse the migrations.
      */

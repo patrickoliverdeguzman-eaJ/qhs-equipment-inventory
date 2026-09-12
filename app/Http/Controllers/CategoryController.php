@@ -7,11 +7,10 @@ use App\Http\Requests\UpdateCategoryRequest;
 use App\Http\Resources\CategoryResource;
 use App\Models\Category;           // ← ALREADY THERE
 use App\Traits\ActionLogger;
-use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
- use ActionLogger;
+    use ActionLogger;
 
     /**
      * Display a listing of the resource.
@@ -31,6 +30,7 @@ class CategoryController extends Controller
         $data = $request->validated();
         $category = Category::create($data);
         $this->logAction('category_created', ['category_id' => $category->id]);
+
         return response(new CategoryResource($category), 201);
     }
 
@@ -50,6 +50,7 @@ class CategoryController extends Controller
         $data = $request->validated();
         $category->update($data);
         $this->logAction('category_updated', ['category_id' => $category->id]);
+
         return new CategoryResource($category);
     }
 
@@ -60,6 +61,7 @@ class CategoryController extends Controller
     {
         $category->delete();
         $this->logAction('category_deleted', ['category_id' => $category->id]);
+
         return response('', 204);
     }
 }

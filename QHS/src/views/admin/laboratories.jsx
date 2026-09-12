@@ -1,7 +1,7 @@
 // src/views/admin/laboratories.jsx
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import axiosClient from "../../axiosClient";
+import axiosClient, { assetUrl } from "../../axiosClient";
 
 import {
   Box,
@@ -169,8 +169,8 @@ export default function Laboratories() {
                           height="140"
                           image={
                             lab.gallery
-                              ? `http://localhost:8000/storage/${lab.gallery}`
-                              : `http://localhost:8000/storage/gallery/default_image.jpg`
+                              ? assetUrl(`/storage/${lab.gallery}`)
+                              : assetUrl('/storage/gallery/default_image.jpg')
                           }
                           alt={lab.name}
                           sx={{

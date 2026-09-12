@@ -2,10 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\Laboratory;
-
+use Illuminate\Database\Seeder;
 
 class LaboratorySeeder extends Seeder
 {

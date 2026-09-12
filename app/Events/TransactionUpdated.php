@@ -2,106 +2,47 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
+use App\Http\Resources\TransactionResource;
+use App\Models\Transaction;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Transaction;
-use App\Models\EquipmentItem;
-use Illuminate\Support\Facades\DB;
 
-class TransactionUpdated implements ShouldBroadcastNow
+class TransactionUpdated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $transaction;
+    public array $transaction;
 
-    /**
-     * Create a new event instance.
-     */
     public function __construct(Transaction $transaction)
     {
-        // Load minimal needed relations
-        // Load basic relations (do NOT request a non-existent `quantity` column)
-        $transaction->load([
-            'borrower:id,name,email',
+        $transaction->loadMissing([
+            'borrower:id,name,email,avatar',
             'laboratory:id,name',
-            'equipment:id,name'
+            'equipment:id,name',
+            'assignedItems:id,equipment_id,unit_id,condition',
         ]);
 
-        // Get assigned units grouped by equipment_id (equipment_items.equipment_id)
-        $assigned = DB::table('transaction_equipment_items')
-            ->join('equipment_items', 'transaction_equipment_items.equipment_item_id', '=', 'equipment_items.id')
-            ->where('transaction_equipment_items.transaction_id', $transaction->id)
-            ->select('equipment_items.equipment_id', 'equipment_items.unit_id')
-            ->get()
-            ->groupBy('equipment_id')
-            ->map(fn($rows) => $rows->pluck('unit_id'));
-
-        // Build clean equipment collection with items (keep as Collection so we can map again)
-        $equipmentForBroadcast = $transaction->equipment->map(function ($eq) use ($assigned, $transaction) {
-            $realUnits = $assigned->get($eq->id, collect());
-
-            $qty = $realUnits->count() ?: 1;
-
-            $unitInfo = '';
-            if ($realUnits->isNotEmpty()) {
-                $unitInfo = $realUnits->implode(', ');
-            } elseif ($transaction->status === 'pending') {
-                $preview = EquipmentItem::where('equipment_id', $eq->id)
-                    ->where('isBorrowed', false)
-                    ->whereNotIn('condition', ['Damaged', 'Missing', 'Under Repair'])
-                    ->take($qty)
-                    ->pluck('unit_id');
-
-                $unitInfo = $preview->isNotEmpty()
-                    ? 'Will assign: ' . $preview->implode(', ')
-                    : '(Will assign on approval)';
-            }
-
-            return [
-                'id' => $eq->id,
-                'name' => $eq->name,
-                'quantity' => $qty,
-                'units' => $unitInfo,
-            ];
-        })->values();
-
-        // Build equipment_summary
-        $summaryLines = $equipmentForBroadcast->map(function ($eq) {
-            $line = "{$eq['name']} ×{$eq['quantity']}";
-            if (!empty($eq['units'])) {
-                $line .= " ({$eq['units']})";
-            }
-            return $line;
-        })->implode(' • ');
-
-        // Build minimal payload for broadcast
-        $this->transaction = [
-            'id' => $transaction->id,
-            'borrower_name' => $transaction->borrower_name,
-            'borrower_email' => $transaction->borrower_email,
-            'laboratory' => $transaction->laboratory,
-            'status' => $transaction->status,
-            'created_at' => $transaction->created_at->toJson(),
-            'equipment_summary' => $summaryLines,
-            'equipment_summary' => $summaryLines,
-            'equipment' => $equipmentForBroadcast->values()->toArray(), // Keep for fallback
-        ];
+        $this->transaction = (new TransactionResource($transaction))->resolve();
     }
 
-    /**
-     * Get the channels the event should broadcast on.
-     */
-    public function broadcastOn(): Channel
+    /** @return list<PrivateChannel> */
+    public function broadcastOn(): array
     {
-        return new Channel('transactions');
+        $channels = [
+            new PrivateChannel('transactions.admin'),
+            new PrivateChannel('transactions.lab.'.$this->transaction['laboratory_id']),
+        ];
+
+        if ($this->transaction['borrower_id']) {
+            $channels[] = new PrivateChannel('transactions.user.'.$this->transaction['borrower_id']);
+        }
+
+        return $channels;
     }
 
-    /**
-     * The event's broadcast name.
-     */
     public function broadcastAs(): string
     {
         return 'transaction.updated';

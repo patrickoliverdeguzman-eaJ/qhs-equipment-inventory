@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import * as React from "react";
-import axiosClient from "../../axiosClient";
+import axiosClient, { assetUrl } from "../../axiosClient";
 import moment from "moment";
 // UI
 import { styled } from "@mui/material/styles";
@@ -122,7 +122,7 @@ export default function Users() {
         avatar: user.avatar,
       });
       setAvatarPreview(
-        user.avatar ? `http://127.0.0.1:8000/storage/${user.avatar}` : null
+        user.avatar ? assetUrl(`/storage/${user.avatar}`) : null
       );
     } else {
       setUserForm({
@@ -485,7 +485,7 @@ export default function Users() {
                   <TableCell sx={{ p: { xs: 0.5, sm: 1 } }}>{u.id}</TableCell>
                   <TableCell sx={{ p: { xs: 0.5, sm: 1 } }}>
                     <Avatar
-                      src={u.avatar ? `http://127.0.0.1:8000/storage/${u.avatar}` : undefined}
+                      src={u.avatar ? assetUrl(`/storage/${u.avatar}`) : undefined}
                       sx={{
                         width: { xs: 36, sm: 44 },
                         height: { xs: 36, sm: 44 },

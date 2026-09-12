@@ -9,7 +9,7 @@ class ActionLog extends Model
     protected $table = 'action_logs';
 
     protected $fillable = [
-        'user_id', 'action', 'method', 'route', 'ip', 'user_agent', 'meta'
+        'user_id', 'action', 'method', 'route', 'ip', 'user_agent', 'meta',
     ];
 
     protected $casts = [

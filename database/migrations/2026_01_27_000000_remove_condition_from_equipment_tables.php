@@ -18,12 +18,6 @@ return new class extends Migration
             });
         }
 
-        // Drop condition column from equipment_items table
-        if (Schema::hasColumn('equipment_items', 'condition')) {
-            Schema::table('equipment_items', function (Blueprint $table) {
-                $table->dropColumn('condition');
-            });
-        }
     }
 
     /**
@@ -36,9 +30,5 @@ return new class extends Migration
             $table->string('condition')->nullable();
         });
 
-        // Restore condition column to equipment_items table
-        Schema::table('equipment_items', function (Blueprint $table) {
-            $table->string('condition')->nullable();
-        });
     }
 };

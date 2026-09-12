@@ -1,9 +1,10 @@
 <?php
 
 namespace App\Http\Requests;
+
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
-
 
 class RegisterRequest extends FormRequest
 {
@@ -18,7 +19,7 @@ class RegisterRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -27,7 +28,8 @@ class RegisterRequest extends FormRequest
             'email' => 'required|email|max:255|unique:users,email',
             'password' => [
                 'required',
-                Password::min(8)->letters()
+                'confirmed',
+                Password::min(8)->letters()->numbers(),
             ],
         ];
     }
@@ -49,7 +51,9 @@ class RegisterRequest extends FormRequest
             'email.max' => 'Email must not exceed 255 characters.',
             'password.required' => 'Password is required.',
             'password.min' => 'Password must be at least 8 characters.',
-            'password.regex' => 'Password must contain at least one letter.',
+            'password.confirmed' => 'Password confirmation does not match.',
+            'password.letters' => 'Password must contain at least one letter.',
+            'password.numbers' => 'Password must contain at least one number.',
         ];
     }
 }

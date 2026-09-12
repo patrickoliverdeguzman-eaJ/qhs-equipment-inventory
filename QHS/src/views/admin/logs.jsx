@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axiosClient from '../../axiosClient';
+import { writePrintDocument } from '../../printDocument';
 import * as Mui from '../../assets/muiImports';
 
 export default function Logs() {
@@ -136,8 +137,7 @@ export default function Logs() {
         </body>
       </html>`;
 
-    win.document.write(html);
-    win.document.close();
+    writePrintDocument(win, html);
     win.focus();
     win.print();
   };

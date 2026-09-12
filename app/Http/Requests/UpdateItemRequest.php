@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\EquipmentItem;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateItemRequest extends FormRequest
@@ -11,20 +13,26 @@ class UpdateItemRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $item = $this->route('item');
+
+        if (! $item instanceof EquipmentItem) {
+            $item = EquipmentItem::with('equipment')->find($item);
+        }
+
+        return $item && $this->user()?->can('manageItems', $item->equipment);
     }
 
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'equipment_id' => 'sometimes|exists:equipment,id',
-            'condition'    => 'sometimes|in:New,Good,Fair,Poor,Damaged,Missing,Under Repair',
-            'isBorrowed'   => 'sometimes|boolean',
+            'equipment_id' => ['prohibited'],
+            'condition' => 'sometimes|in:New,Good,Fair,Poor,Damaged,Missing,Under Repair',
+            'isBorrowed' => ['prohibited'],
         ];
     }
 }

@@ -10,16 +10,16 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up()
-{
-    Schema::table('laboratory', function (Blueprint $table) {
-        $table->unsignedBigInteger('custodianID')->nullable()->unique()->change(); // Add unique constraint
-    });
-}
+    {
+        if (! Schema::hasIndex('laboratories', 'laboratories_custodianid_unique')) {
+            Schema::table('laboratories', function (Blueprint $table) {
+                $table->unique('custodianID');
+            });
+        }
+    }
 
-public function down()
-{
-    Schema::table('laboratory', function (Blueprint $table) {
-        $table->dropUnique(['custodianID']); // Drop the unique constraint
-    });
-}
+    public function down()
+    {
+        // The unique constraint is owned by the original column migration.
+    }
 };

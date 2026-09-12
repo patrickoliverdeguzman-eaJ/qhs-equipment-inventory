@@ -4,8 +4,8 @@ namespace App\Mail;
 
 use App\Models\User;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -15,7 +15,9 @@ class PasswordResetMail extends Mailable
     use Queueable, SerializesModels;
 
     public User $user;
+
     public string $resetToken;
+
     public string $resetUrl;
 
     /**
@@ -25,12 +27,8 @@ class PasswordResetMail extends Mailable
     {
         $this->user = $user;
         $this->resetToken = $resetToken;
-        // For development, point to React dev server on port 5173
-        // For production, use the APP_URL with /reset-password path
-        $baseUrl = env('APP_ENV') === 'production' 
-            ? config('app.url')
-            : 'http://127.0.0.1:5173';
-        $this->resetUrl = $baseUrl . '/reset-password?token=' . $resetToken . '&email=' . urlencode($user->email);
+        $baseUrl = rtrim(config('app.frontend_url'), '/');
+        $this->resetUrl = $baseUrl.'/reset-password?token='.urlencode($resetToken).'&email='.urlencode($user->email);
     }
 
     /**
@@ -60,7 +58,7 @@ class PasswordResetMail extends Mailable
     /**
      * Get the attachments for the message.
      *
-     * @return array<int, \Illuminate\Mail\Mailables\Attachment>
+     * @return array<int, Attachment>
      */
     public function attachments(): array
     {

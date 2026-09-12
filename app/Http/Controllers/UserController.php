@@ -6,38 +6,42 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Traits\ActionLogger;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Http\Request;
-use App\Traits\ActionLogger;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
     use ActionLogger;
+
     /**
      * Display a listing of the users.
      *
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     * @return AnonymousResourceCollection
      */
     public function index(Request $request)
     {
-    $query = User::query()->orderBy('id', 'desc');
-    if ($request->has('role')) {
-        $role = $request->query('role');
-        $query->where('role', $role);
-    }
-    
-    // Add pagination for better performance
-    $perPage = $request->get('per_page', 50);
-    return UserResource::collection($query->paginate($perPage));
+        $query = User::query()->orderBy('id', 'desc');
 
+        if ($request->user()->isCustodian()) {
+            $query->where('role', 'user')->where('isActive', true);
+        } elseif ($request->filled('role')) {
+            $request->validate(['role' => 'in:admin,custodian,user']);
+            $query->where('role', $request->string('role'));
+        }
+
+        return UserResource::collection($query->paginate(min(100, max(1, $request->integer('per_page', 50)))));
     }
 
     /**
      * Store a newly created user in storage.
      *
-     * @param  \App\Http\Requests\StoreUserRequest  $request
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function store(StoreUserRequest $request)
     {
@@ -45,20 +49,21 @@ class UserController extends Controller
 
         // Hash the password if it exists in the request
         if (isset($data['password'])) {
-            $data['password'] = bcrypt($data['password']);
+            $data['password'] = Hash::make($data['password']);
         }
 
         // Handle avatar file upload
         if ($request->hasFile('avatar')) {
-            $avatarName = Str::random(32) . "." . $request->avatar->getClientOriginalExtension();
-            $data['avatar'] = $request->file('avatar')->storeAs('avatars', $avatarName, 'public');
+            $avatar = $request->file('avatar');
+            $avatarName = Str::random(32).'.'.$avatar->extension();
+            $data['avatar'] = $avatar->storeAs('avatars', $avatarName, 'public');
         }
-        
-        $data['isActive'] = true;
-        
+
+        $data['isActive'] ??= true;
+
         // Auto-verify email for users created by admin
         $data['email_verified_at'] = now();
-        
+
         // Create the user
         $user = User::create($data);
 
@@ -70,8 +75,7 @@ class UserController extends Controller
     /**
      * Display the specified user.
      *
-     * @param  \App\Models\User  $user
-     * @return \App\Http\Resources\UserResource
+     * @return UserResource
      */
     public function show(User $user)
     {
@@ -81,35 +85,49 @@ class UserController extends Controller
     /**
      * Update the specified user in storage.
      *
-     * @param  \App\Http\Requests\UpdateUserRequest  $request
-     * @param  \App\Models\User  $user
-     * @return \App\Http\Resources\UserResource
+     * @return UserResource
      */
     public function update(UpdateUserRequest $request, User $user)
     {
         $data = $request->validated();
+        $oldAvatar = null;
+
+        $willRemainActiveAdmin = ($data['role'] ?? $user->role) === 'admin'
+            && (bool) ($data['isActive'] ?? $user->isActive);
+
+        if (! $willRemainActiveAdmin && ! User::query()
+            ->whereKeyNot($user->id)
+            ->where('role', 'admin')
+            ->where('isActive', true)
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'user' => ['At least one active administrator account is required.'],
+            ]);
+        }
 
         // Hash the password if it exists in the request
         if (isset($data['password'])) {
-            $data['password'] = bcrypt($data['password']);
+            $data['password'] = Hash::make($data['password']);
         }
 
         // Handle avatar file upload
         if ($request->hasFile('avatar')) {
-            $storage = Storage::disk('public');
-
-            // Delete the old avatar if it exists
-            if ($user->avatar) {
-                $storage->delete($user->avatar);
-            }
-
-            // Store the new avatar
-            $avatarName = Str::random(32) . "." . $request->avatar->getClientOriginalExtension();
-            $data['avatar'] = $request->file('avatar')->storeAs('avatars', $avatarName, 'public');
+            $oldAvatar = $user->avatar;
+            $avatar = $request->file('avatar');
+            $avatarName = Str::random(32).'.'.$avatar->extension();
+            $data['avatar'] = $avatar->storeAs('avatars', $avatarName, 'public');
         }
 
         // Update the user
         $user->update($data);
+
+        if ($oldAvatar) {
+            Storage::disk('public')->delete($oldAvatar);
+        }
+
+        if (array_key_exists('isActive', $data) && ! $data['isActive']) {
+            $user->tokens()->delete();
+        }
 
         $this->logAction('user_updated', ['user_id' => $user->id]);
 
@@ -119,11 +137,22 @@ class UserController extends Controller
     /**
      * Remove the specified user from storage.
      *
-     * @param  \App\Models\User  $user
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function destroy(User $user)
     {
+        if (auth()->id() === $user->id) {
+            return response()->json(['message' => 'You cannot delete your own account.'], 422);
+        }
+
+        if ($user->role === 'admin' && ! User::query()
+            ->whereKeyNot($user->id)
+            ->where('role', 'admin')
+            ->where('isActive', true)
+            ->exists()) {
+            return response()->json(['message' => 'The final active administrator account cannot be deleted.'], 422);
+        }
+
         // Delete the user's avatar if it exists
         if ($user->avatar) {
             Storage::disk('public')->delete($user->avatar);
@@ -134,6 +163,6 @@ class UserController extends Controller
 
         $this->logAction('user_deleted', ['user_id' => $user->id]);
 
-        return response('', 204);
+        return response()->noContent();
     }
 }

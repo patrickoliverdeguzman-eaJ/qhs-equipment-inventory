@@ -1,5 +1,6 @@
 import React, { useEffect, useState, memo } from 'react';
 import axiosClient from '../../axiosClient';
+import { writePrintDocument } from '../../printDocument';
 import {
   Box, Button, Paper, Typography, Grid, Table, TableHead, TableRow, TableCell, TableBody,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, FormControl, InputLabel,
@@ -345,8 +346,7 @@ export default memo(function DailyInventorySnapshots() {
         return;
       }
       
-      w.document.write(html);
-      w.document.close();
+      writePrintDocument(w, html);
       setTimeout(() => {
         w.focus();
         w.print();
@@ -630,8 +630,7 @@ export default memo(function DailyInventorySnapshots() {
         return;
       }
       
-      w.document.write(html);
-      w.document.close();
+      writePrintDocument(w, html);
       setTimeout(() => {
         w.focus();
         w.print();
@@ -896,8 +895,7 @@ export default memo(function DailyInventorySnapshots() {
         return;
       }
       
-      w.document.write(html);
-      w.document.close();
+      writePrintDocument(w, html);
       setTimeout(() => {
         w.focus();
         w.print();

@@ -1,8 +1,8 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "qhs/equipment-inventory",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Quirino High School equipment inventory and borrowing system.",
     "keywords": [
         "laravel",
         "framework"
@@ -10,8 +10,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "laravel/framework": "^11.31",
-        "laravel/octane": "^2.13",
+        "laravel/framework": "^12.61.1",
         "laravel/reverb": "^1.6",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9"
@@ -53,7 +52,7 @@
             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --graceful --ansi"
         ],
-        "dev": "npx concurrently -c \"#93c5fd,#c4b5fd,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"npm run dev\" --names='server,queue,vite'"
+        "dev": "npx --prefix QHS concurrently -c \"#93c5fd,#c4b5fd,#fca5a5,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan reverb:start\" \"npm --prefix QHS run dev\" --names='server,queue,reverb,vite'"
     },
     "extra": {
         "laravel": {

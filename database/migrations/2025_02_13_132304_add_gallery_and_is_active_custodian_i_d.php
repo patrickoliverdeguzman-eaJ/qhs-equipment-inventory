@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('laboratory', function (Blueprint $table) {
+        Schema::table('laboratories', function (Blueprint $table) {
             $table->unsignedBigInteger('custodianID')->nullable()->unique(); // Add unique constraint
-            $table->string('isActive')->nullable();
+            $table->boolean('isActive')->default(true);
             $table->string('gallery')->nullable();
         });
     }
@@ -23,7 +23,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('laboratory', function (Blueprint $table) {
+        Schema::table('laboratories', function (Blueprint $table) {
             $table->dropUnique(['custodianID']); // Drop the unique constraint
             $table->dropColumn(['custodianID', 'isActive', 'gallery']);
         });

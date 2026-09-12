@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">QHS Inventory</title>
+  <rect width="64" height="64" rx="15" fill="#741b32"/>
+  <path d="M15 17h34v30H15z" fill="none" stroke="#d49b2f" stroke-width="2"/>
+  <text x="32" y="38" fill="#fff" font-family="Arial, sans-serif" font-size="17" font-weight="700" text-anchor="middle">QHS</text>
+</svg>

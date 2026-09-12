@@ -9,7 +9,7 @@ class UpdateEquipmentRequest extends FormRequest
 {
     public function authorize()
     {
-        return true; // Adjust based on your authorization logic
+        return $this->user()?->can('update', $this->route('equipment')) === true;
     }
 
     public function rules()
@@ -20,13 +20,13 @@ class UpdateEquipmentRequest extends FormRequest
             'location' => 'sometimes|string|nullable',
             'image' => [
                 'sometimes',
-                Rule::when($this->hasFile('image'), ['image', 'mimes:jpeg,png,jpg,gif', 'max:2048'], ['string']),
+                Rule::when($this->hasFile('image'), ['image', 'mimes:jpeg,png,jpg,webp', 'max:4096'], ['string']),
             ],
-            'laboratory_id' => 'sometimes|exists:laboratory,id',
-            'quantity' => 'sometimes|integer|min:0',
-            'category_ids' => 'sometimes|array',
-            'category_ids.*' => 'exists:categories,id',
+            'laboratory_id' => 'sometimes|exists:laboratories,id',
+            'category_ids' => 'sometimes|array|max:20',
+            'category_ids.*' => 'integer|distinct|exists:categories,id',
             'isActive' => 'sometimes|boolean',
+            'remove_image' => 'sometimes|boolean',
         ];
     }
 }

@@ -1,13 +1,17 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\EmailVerificationController;
 
-// Email Verification Web Route
-Route::get('/verify-email', [EmailVerificationController::class, 'verifyEmail'])->name('verify.email');
+Route::get('/{any?}', function (string $any = '') {
+    $index = public_path('app/index.html');
 
-// Catch-all route for React SPA - must be last
-Route::get('/{any?}', function () {
-    return view('app');
+    if (is_file($index)) {
+        return response()->file($index);
+    }
+
+    if (app()->isLocal() && config('app.frontend_url') !== config('app.url')) {
+        return redirect(rtrim(config('app.frontend_url'), '/').'/'.ltrim($any, '/'));
+    }
+
+    return response()->view('app', status: 503);
 })->where('any', '.*');
-

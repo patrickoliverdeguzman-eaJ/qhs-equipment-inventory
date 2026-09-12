@@ -1,6 +1,6 @@
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useStateContext } from "../Context/ContextProvider";
-import axiosClient from "../axiosClient";
+import axiosClient, { assetUrl } from "../axiosClient";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import * as React from 'react';
 import * as Mui from '../assets/muiImports';
@@ -199,10 +199,11 @@ function CustodianLayout() {
 
   const onLogout = (ev) => {
     ev.preventDefault();
-    axiosClient.get('/logout')
-      .then(() => {
+    axiosClient.post('/logout')
+      .finally(() => {
         setUser(null);
         setToken(null);
+        navigate('/auth', { replace: true });
       });
   };
 
@@ -262,14 +263,12 @@ function CustodianLayout() {
     // Set up Reverb listener if Echo is available
     if (window.Echo) {
       try {
-        window.Echo.channel('transactions')
-          .listen('TransactionUpdated', () => {
+        window.Echo.private(`transactions.lab.${laboratoryId}`)
+          .listen('.transaction.updated', () => {
             refreshNotifications();
             window.dispatchEvent(new CustomEvent('transactionUpdated'));
           });
-      } catch (e) {
-        console.log('Reverb not available, using polling fallback');
-      }
+      } catch { /* Polling remains available. */ }
     }
 
     // Polling fallback every 10 seconds
@@ -279,7 +278,7 @@ function CustodianLayout() {
       window.removeEventListener('transactionUpdated', handleTransactionUpdate);
       clearInterval(interval);
       if (window.Echo) {
-        try { window.Echo.leaveChannel('transactions'); } catch (e) { }
+        try { window.Echo.leave(`transactions.lab.${laboratoryId}`); } catch { /* Already closed. */ }
       }
     };
   }, [laboratoryId]);
@@ -495,7 +494,7 @@ function CustodianLayout() {
           >
             <DrawerHeader>
               <Avatar
-                src={user?.avatar ? `${import.meta.env.VITE_APP_URL || 'http://127.0.0.1:8000'}/storage/${user.avatar}` : ''}
+                src={user?.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined}
                 sx={{ width: 44, height: 44, fontSize: 14, m: 'auto' }}
               >
                 {!user?.avatar && getInitials(user?.name)}

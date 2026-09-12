@@ -54,7 +54,7 @@ import {
   SwapHoriz,
 } from "@mui/icons-material";
 import { useStateContext } from "../../Context/ContextProvider";
-import axiosClient from "../../axiosClient";
+import axiosClient, { assetUrl } from "../../axiosClient";
 import moment from "moment";
 import { useNavigate } from "react-router-dom";
 
@@ -518,7 +518,7 @@ export default function AdminDashboard() {
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, bgcolor: "background.default" }}>
       {/* Header */}
       <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "flex-start", sm: "center" }, mb: 4, gap: 2 }}>
-        <Avatar src={"http://localhost:8000/storage/" + user.avatar} sx={{ bgcolor: "primary.main", width: { xs: 48, sm: 56 }, height: { xs: 48, sm: 56 }, fontSize: { xs: 20, sm: 24 } }}>
+        <Avatar src={user.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined} sx={{ bgcolor: "primary.main", width: { xs: 48, sm: 56 }, height: { xs: 48, sm: 56 }, fontSize: { xs: 20, sm: 24 } }}>
           {user?.name?.charAt(0).toUpperCase() || "A"}
         </Avatar>
         <Box>

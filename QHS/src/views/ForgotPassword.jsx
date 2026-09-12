@@ -1,49 +1,55 @@
-import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import axiosClient from "../axiosClient";
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import axiosClient from '../axiosClient';
 
 export default function ForgotPassword() {
-    const emailRef = useRef();
-    const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(null);
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-    const Submit = (ev) => {
-        ev.preventDefault();
-        const payload = {
-            email: emailRef.current.value,
-        };
+  const submit = async (event) => {
+    event.preventDefault();
+    if (submitting) return;
 
-        axiosClient
-            .post("/forgot-password", payload)
-            .then(() => {
-                setSuccess("Password reset link has been sent to your email.");
-            })
-            .catch((err) => {
-                const response = err.response;
-                if (response && response.status === 422) {
-                    const errorMessage = response.data?.message || "Invalid email. Please try again.";
-                    setError(errorMessage);
-                    console.error('Validation errors:', response.data);
-                } else {
-                    setError("Something went wrong. Please try again later.");
-                }
-            });
-    };
+    setSubmitting(true);
+    setError('');
+    setSuccess('');
 
-    return (
-        <div className="login-signup-form animated fadeInDown">
-            <div className="form">
-                <h1 className="title">Forgot Password</h1>
-                {error && <div className="alert alert-danger">{error}</div>}
-                {success && <div className="alert alert-success">{success}</div>}
-                <form onSubmit={Submit}>
-                    <input ref={emailRef} type="email" placeholder="Email" />
-                    <button className="btn btn-block">Send Password Reset Link</button>
-                    <p className="message">
-                        Remember your password? <Link to="/auth">Login</Link>
-                    </p>
-                </form>
-            </div>
-        </div>
-    );
+    try {
+      const { data } = await axiosClient.post('/forgot-password', { email });
+      setSuccess(data.message);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'The reset request could not be completed.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="auth-card animated fadeInDown">
+      <header className="auth-card-header">
+        <p className="auth-eyebrow">Account recovery</p>
+        <h2>Reset your password</h2>
+        <p>Enter your school email. For privacy, the response is the same whether or not an account exists.</p>
+      </header>
+      {error && <div className="alert" role="alert">{error}</div>}
+      {success && <div className="alert alert-success" role="status">{success}</div>}
+      <form onSubmit={submit}>
+        <label htmlFor="forgot-email">Email address</label>
+        <input
+          id="forgot-email"
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          autoComplete="email"
+          required
+        />
+        <button className="btn btn-block" disabled={submitting}>
+          {submitting ? 'Requesting…' : 'Send reset link'}
+        </button>
+        <p className="message">Remember your password? <Link to="/auth">Sign in</Link></p>
+      </form>
+    </div>
+  );
 }

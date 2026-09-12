@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import axiosClient from "../../axiosClient";
+import { useStateContext } from "../../Context/ContextProvider";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import {
   Button,
@@ -18,6 +19,8 @@ import {
 export default function ItemForm() {
   const { id, equipmentID } = useParams();
   const navigate = useNavigate();
+  const { user } = useStateContext();
+  const basePath = user?.role === 'custodian' ? '/custodian' : '/admin';
 
   const [item, setItem] = useState({
     id: null,
@@ -56,11 +59,9 @@ export default function ItemForm() {
     setLoading(true);
     setErrors({});
 
-    const payload = {
-      equipment_id: parseInt(item.equipment_id),
-      condition: item.condition || 'Good',
-      isBorrowed: false, // always available when creating
-    };
+    const payload = item.id
+      ? { condition: item.condition || 'Good' }
+      : { equipment_id: parseInt(item.equipment_id), condition: item.condition || 'Good' };
 
     try {
       if (item.id) {
@@ -68,7 +69,7 @@ export default function ItemForm() {
       } else {
         await axiosClient.post("/item", payload);
       }
-      navigate(`/admin/equipment/info/${item.equipment_id}`);
+      navigate(`${basePath}/equipment/info/${item.equipment_id}`);
     } catch (err) {
       console.error("Save failed:", err.response?.data);
       if (err.response?.status === 422) {
@@ -97,7 +98,7 @@ export default function ItemForm() {
 
   return (
     <Box sx={{ maxWidth: 650, mx: "auto", p: 3 }}>
-      <Link to={`/admin/equipment/info/${equipmentID || item.equipment_id}`}>
+      <Link to={`${basePath}/equipment/info/${equipmentID || item.equipment_id}`}>
         <Button
           variant="outlined"
           startIcon={<ArrowBackIcon />}

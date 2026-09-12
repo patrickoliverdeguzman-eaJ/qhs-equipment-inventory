@@ -11,15 +11,15 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::table('equipment', function (Blueprint $table) {
-            $table->string('image')->nullable()->after('description');
-        });
+        if (! Schema::hasColumn('equipment', 'image')) {
+            Schema::table('equipment', function (Blueprint $table) {
+                $table->string('image')->nullable()->after('description');
+            });
+        }
     }
-    
+
     public function down()
     {
-        Schema::table('equipment', function (Blueprint $table) {
-            $table->dropColumn('image');
-        });
+        // Image ownership predates this compatibility migration.
     }
 };

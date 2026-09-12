@@ -1,244 +1,122 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-//guest
-import Login from './views/login.jsx';
-import Register from './views/register.jsx';
-import ForgotPassword from './views/ForgotPassword.jsx';
-import ResetPassword from './views/ResetPassword.jsx';
-import VerifyEmail from './views/verifyEmail.jsx';
-import GuestLayout from './Components/GuestLayout.jsx';
-import DefaultLayout from './Components/DefaultLayout.jsx';
-import CustodianLayout from './Components/CustodianLayout.jsx';
-//admin
-import Users from './views/admin/users.jsx';
-
-import Adashboard from './views/admin/adminDashboard.jsx';
-import Laboratories from './views/admin/laboratories.jsx';
-import LaboratoryForm from './views/admin/LaboratoryForm.jsx';
-import Labinfo from './views/admin/labinfo.jsx';
-import Equipment from './views/admin/equipment.jsx';
-import Inventory from './views/admin/inventory.jsx';
-import EquipmentForm from './views/admin/equipmentForm.jsx';
-import Transaction from './views/admin/transaction.jsx';
-import TransactionReports from './views/admin/transactionReports.jsx';
-import Logs from './views/admin/logs.jsx';
-import EquipmentInfo from './views/admin/equipmentInfo.jsx';
-import ItemForm from './views/admin/ItemForm.jsx';
-import EquipmentCategory from './views/admin/category.jsx';
-import ItemHistoryPublic from './views/ItemHistoryPublic.jsx';
-import ItemHistoryWrapper from './views/ItemHistoryWrapper.jsx';
-import DailyInventorySnapshots from './views/admin/dailyInventorySnapshots.jsx';
-//custodian
-import CustodianDashboard from './views/custodian/CustodianDashboard.jsx';
-//user
-import UserLayout from './Components/UserLayout.jsx';
-import Home from './views/Home.jsx';
-import UserLab from './views/UserLab.jsx';
-import Profile from './views/Profile.jsx';
-import BorrowHistory from './views/BorrowHistory.jsx';
-import About from './views/About.jsx';
-
-//*
-import NotAuthorize from './views/NotAuthorized.jsx';
-import NotFound from './views/NotFound.jsx'
+import { lazy, Suspense } from 'react';
+import { createBrowserRouter } from 'react-router-dom';
 import ProtectedRoute from './Components/ProtectedRoute.jsx';
 
+const Login = lazy(() => import('./views/login.jsx'));
+const Register = lazy(() => import('./views/register.jsx'));
+const ForgotPassword = lazy(() => import('./views/ForgotPassword.jsx'));
+const ResetPassword = lazy(() => import('./views/ResetPassword.jsx'));
+const VerifyEmail = lazy(() => import('./views/verifyEmail.jsx'));
+const GuestLayout = lazy(() => import('./Components/GuestLayout.jsx'));
+const DefaultLayout = lazy(() => import('./Components/DefaultLayout.jsx'));
+const CustodianLayout = lazy(() => import('./Components/CustodianLayout.jsx'));
+const UserLayout = lazy(() => import('./Components/UserLayout.jsx'));
+const Users = lazy(() => import('./views/admin/users.jsx'));
+const AdminDashboard = lazy(() => import('./views/admin/adminDashboard.jsx'));
+const Laboratories = lazy(() => import('./views/admin/laboratories.jsx'));
+const LaboratoryForm = lazy(() => import('./views/admin/LaboratoryForm.jsx'));
+const LabInfo = lazy(() => import('./views/admin/labinfo.jsx'));
+const Equipment = lazy(() => import('./views/admin/equipment.jsx'));
+const Inventory = lazy(() => import('./views/admin/inventory.jsx'));
+const EquipmentForm = lazy(() => import('./views/admin/equipmentForm.jsx'));
+const Transaction = lazy(() => import('./views/admin/transaction.jsx'));
+const TransactionReports = lazy(() => import('./views/admin/transactionReports.jsx'));
+const Logs = lazy(() => import('./views/admin/logs.jsx'));
+const EquipmentInfo = lazy(() => import('./views/admin/equipmentInfo.jsx'));
+const ItemForm = lazy(() => import('./views/admin/ItemForm.jsx'));
+const EquipmentCategory = lazy(() => import('./views/admin/category.jsx'));
+const ItemHistoryWrapper = lazy(() => import('./views/ItemHistoryWrapper.jsx'));
+const DailyInventorySnapshots = lazy(() => import('./views/admin/dailyInventorySnapshots.jsx'));
+const CustodianDashboard = lazy(() => import('./views/custodian/CustodianDashboard.jsx'));
+const Home = lazy(() => import('./views/Home.jsx'));
+const UserLab = lazy(() => import('./views/UserLab.jsx'));
+const Profile = lazy(() => import('./views/Profile.jsx'));
+const BorrowHistory = lazy(() => import('./views/BorrowHistory.jsx'));
+const About = lazy(() => import('./views/About.jsx'));
+const NotAuthorized = lazy(() => import('./views/NotAuthorized.jsx'));
+const NotFound = lazy(() => import('./views/NotFound.jsx'));
+
+const screen = (Component, key) => (
+  <Suspense fallback={<div className="route-loading" role="status">Loading…</div>}>
+    <Component key={key} />
+  </Suspense>
+);
+
+const protectedLayout = (roles, Component) => (
+  <ProtectedRoute allowedRoles={roles}>{screen(Component)}</ProtectedRoute>
+);
+
 const router = createBrowserRouter([
-    {
-        path: '/',
-        element: <ProtectedRoute allowedRoles={['user']}>
-            <UserLayout />
-            </ProtectedRoute>,
-        children: [
-            {
-                index: true,
-                element: <Home />,
-            },
-            {
-                path: 'laboratories',
-                element: <UserLab />,
-            },
-            {
-                path: 'profile',
-                element: <Profile />,
-            },
-            {
-                path: 'borrow-history',
-                element: <BorrowHistory />,
-            },
-            {
-                path: 'about',
-                element: <About />,
-            },
-        ],
-    },
-    {
-        path: '/NotAuthorized',
-        element: <NotAuthorize />,
-    },
-    {
-        path: '/item-history/:unitID',
-        element: <ItemHistoryWrapper />,
-    },
-    {
-        path: '/admin',
-        element: (
-            <ProtectedRoute allowedRoles={['admin']}>
-                <DefaultLayout />
-            </ProtectedRoute>
-        ),
-        children: [
-            {
-                index: true,
-                element: <Adashboard />,
-            },
-            {
-                path: 'users',
-                element: <Users />,
-            },
-           
-            {
-                path: 'lab',
-                element: <Laboratories />,
-            },
-            {
-                path: 'lab/new',
-                element: <LaboratoryForm key="laboratoryCreate" />,
-            },
-            {
-                path: 'lab/:id',
-                element: <LaboratoryForm key="laboratoryUpdate" />,
-            },
-            {
-                path: 'lab/:name/:id',
-                element: <Labinfo key="infoUpdate" />,
-            },
-            {
-                path: 'equipment',
-                element: <Equipment/>,
-            },
-            {
-                path: 'equipment/new',
-                element: <EquipmentForm key="EquipmentCreate" />,
-            },
-            {
-                path: 'equipment/:id',
-                element: <EquipmentForm key="EquipmentUpdate" />,
-            },
-            {
-                path: 'equipment/info/:id',
-                element: <EquipmentInfo key="EquipmentInfo" />,
-            },
-            {
-                path: 'equipment/info/:equipmentID/add-item',
-                element: <ItemForm key="ItemCreate" />,
-            },
-            {
-                path: 'equipment/info/:equipmentID/edit-item/:id',
-                element: <ItemForm key="ItemUpdate" />,
-            },
-            {
-                path: 'transactions',
-                element: <Transaction/>,
-            },
-            {
-                path: 'transaction-reports',
-                element: <TransactionReports/>,
-            },
-            {
-                path: 'logs',
-                element: <Logs />,
-            },
-            {
-                path: 'inventory',
-                element: <Inventory />,
-            },
-            {
-                path: 'category',
-                element: <EquipmentCategory/>,
-            },
-        ],
-    },
-    {
-        path: '/custodian',
-        element: (
-            <ProtectedRoute allowedRoles={['custodian']}>
-                <CustodianLayout />
-            </ProtectedRoute>
-        ),
-        children: [
-            {
-                index: true,
-                element: <CustodianDashboard />,
-            },
-            {
-                path: 'equipment',
-                element: <Equipment />,
-            },
-            {
-                path: 'equipment/:id',
-                element: <EquipmentForm key="EquipmentUpdate" />,
-            },
-            {
-                path: 'equipment/info/:id',
-                element: <EquipmentInfo key="EquipmentInfo" />,
-            },
-            {
-                path: 'equipment/info/:equipmentID/add-item',
-                element: <ItemForm key="ItemCreate" />,
-            },
-            {
-                path: 'equipment/info/:equipmentID/edit-item/:id',
-                element: <ItemForm key="ItemUpdate" />,
-            },
-            {
-                path: 'transactions',
-                element: <Transaction />,
-            },
-            {
-                path: 'transaction-reports',
-                element: <TransactionReports />,
-            },
-            {
-                path: 'inventory-snapshots',
-                element: <DailyInventorySnapshots />,
-            },
-        ],
-    },
-    {
-        path: '/auth',
-        element: <GuestLayout />,
-        children: [
-            {
-                index:true,
-                element: <Login />,
-            },
-            {
-                path: 'register',
-                element: <Register />,
-            },
-            {
-                path: 'verify-email',
-                element: <VerifyEmail />,
-            },
-        ],
-    },
-    {
-        path: '/forgot-password',
-        element: <ForgotPassword />,
-    },
-    {
-        path: '/reset-password',
-        element: <ResetPassword />,
-    },
-    {
-        path: '/verify-email',
-        element: <VerifyEmail />,
-    },
-   
-    {
-        path: '*',
-        element: <NotFound/>, // Redirect to login for unknown routes
-    },
+  {
+    path: '/',
+    element: protectedLayout(['user'], UserLayout),
+    children: [
+      { index: true, element: screen(Home) },
+      { path: 'laboratories', element: screen(UserLab) },
+      { path: 'profile', element: screen(Profile) },
+      { path: 'borrow-history', element: screen(BorrowHistory) },
+      { path: 'about', element: screen(About) },
+    ],
+  },
+  { path: '/not-authorized', element: screen(NotAuthorized) },
+  {
+    path: '/item-history/:unitID',
+    element: (
+      <ProtectedRoute allowedRoles={['admin', 'custodian']}>
+        {screen(ItemHistoryWrapper)}
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin',
+    element: protectedLayout(['admin'], DefaultLayout),
+    children: [
+      { index: true, element: screen(AdminDashboard) },
+      { path: 'users', element: screen(Users) },
+      { path: 'lab', element: screen(Laboratories) },
+      { path: 'lab/new', element: screen(LaboratoryForm, 'laboratoryCreate') },
+      { path: 'lab/:id', element: screen(LaboratoryForm, 'laboratoryUpdate') },
+      { path: 'lab/:name/:id', element: screen(LabInfo, 'infoUpdate') },
+      { path: 'equipment', element: screen(Equipment) },
+      { path: 'equipment/new', element: screen(EquipmentForm, 'equipmentCreate') },
+      { path: 'equipment/:id', element: screen(EquipmentForm, 'equipmentUpdate') },
+      { path: 'equipment/info/:id', element: screen(EquipmentInfo, 'equipmentInfo') },
+      { path: 'equipment/info/:equipmentID/add-item', element: screen(ItemForm, 'itemCreate') },
+      { path: 'equipment/info/:equipmentID/edit-item/:id', element: screen(ItemForm, 'itemUpdate') },
+      { path: 'transactions', element: screen(Transaction) },
+      { path: 'transaction-reports', element: screen(TransactionReports) },
+      { path: 'logs', element: screen(Logs) },
+      { path: 'inventory', element: screen(Inventory) },
+      { path: 'category', element: screen(EquipmentCategory) },
+    ],
+  },
+  {
+    path: '/custodian',
+    element: protectedLayout(['custodian'], CustodianLayout),
+    children: [
+      { index: true, element: screen(CustodianDashboard) },
+      { path: 'equipment', element: screen(Equipment) },
+      { path: 'equipment/:id', element: screen(EquipmentForm, 'equipmentUpdate') },
+      { path: 'equipment/info/:id', element: screen(EquipmentInfo, 'equipmentInfo') },
+      { path: 'equipment/info/:equipmentID/add-item', element: screen(ItemForm, 'itemCreate') },
+      { path: 'equipment/info/:equipmentID/edit-item/:id', element: screen(ItemForm, 'itemUpdate') },
+      { path: 'transactions', element: screen(Transaction) },
+      { path: 'transaction-reports', element: screen(TransactionReports) },
+      { path: 'inventory-snapshots', element: screen(DailyInventorySnapshots) },
+    ],
+  },
+  {
+    element: screen(GuestLayout),
+    children: [
+      { path: '/auth', element: screen(Login) },
+      { path: '/auth/register', element: screen(Register) },
+      { path: '/auth/verify-email', element: screen(VerifyEmail) },
+      { path: '/forgot-password', element: screen(ForgotPassword) },
+      { path: '/reset-password', element: screen(ResetPassword) },
+      { path: '/verify-email', element: screen(VerifyEmail) },
+    ],
+  },
+  { path: '*', element: screen(NotFound) },
 ]);
 
 export default router;

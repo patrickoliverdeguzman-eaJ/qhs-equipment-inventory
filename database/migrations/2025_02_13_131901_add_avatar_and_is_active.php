@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->string('avatar')->nullable();
-            $table->string('isActive')->nullable();
+            $table->boolean('isActive')->default(true);
         });
     }
 

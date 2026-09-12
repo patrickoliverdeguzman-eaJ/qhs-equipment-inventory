@@ -1,66 +1,87 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# QHS Equipment Inventory
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Quirino High School's equipment inventory and borrowing application. Laravel 12 provides the API, authorization, scheduled snapshots, and private Reverb events; React 18 and Vite provide the role-specific user interface.
 
-## About Laravel
+## Major features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- Student registration, verified sign login, account recovery, profile management, and self-service borrow requests
+- Administrator management for users, laboratories, categories, equipment, inventory units, transactions, reports, snapshots, and audit logs
+- Laboratory-scoped custodian equipment and transaction workflows
+- Atomic unit reservation and auditable accept, reject, and return transitions
+- Private real-time transaction updates with polling fallback
+- Safe CSV import/export, local QR-label generation, and responsive role-specific navigation
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Architecture
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- `app/Http/Controllers` keeps HTTP concerns thin.
+- `app/Services/TransactionService.php` owns atomic borrow, assignment, accept, reject, return, and release workflows.
+- Policies plus `role` and `active` middleware enforce admin, custodian-laboratory, and borrower boundaries.
+- `QHS/src` is the React application. Vite emits production assets to ignored `public/app`; Laravel serves its index for client-side routes.
+- Reverb uses authenticated private channels per user, laboratory, and administrator. Ten-second polling remains a resilience fallback.
 
-## Learning Laravel
+## Requirements
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- PHP 8.2 or newer with OpenSSL, Mbstring, Fileinfo, PDO, and the database driver; DOM/XML is also required for the test suite
+- Composer 2
+- Node.js 20 or newer and npm
+- MySQL 8+ for production; SQLite is used by the automated tests
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Local setup
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+composer install
+copy .env.example .env
+php artisan key:generate
+php artisan migrate
+npm --prefix QHS install
+composer dev
+```
 
-## Laravel Sponsors
+On macOS/Linux use `cp` instead of `copy`. `composer dev` starts Laravel, the queue listener, Reverb, and Vite. The default Vite address is `http://127.0.0.1:5173`.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Create the first administrator without committing a default password:
 
-### Premium Partners
+```bash
+php artisan app:create-admin admin@example.edu
+```
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+The command prompts securely for the administrator's name and password. It can also promote an existing account.
 
-## Contributing
+## Configuration
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Copy both environment examples and set production values:
 
-## Code of Conduct
+- Root `.env`: database, mail, `APP_URL`, `FRONTEND_URL`, `CORS_ALLOWED_ORIGINS`, broadcast connection, and Reverb credentials/origins.
+- `QHS/.env`: optional API and Reverb overrides. Same-origin production deployments can use `/api`.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Never use the example Reverb secret in production. Run queue workers and `php artisan reverb:start` under a process supervisor. The scheduler must invoke `php artisan schedule:run` every minute.
 
-## Security Vulnerabilities
+## Production build
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+composer install --no-dev --optimize-autoloader
+npm --prefix QHS ci
+npm --prefix QHS run build
+php artisan storage:link
+php artisan migrate --force
+php artisan optimize
+```
 
-## License
+The web server document root must be `public/`. Uploaded files are served through `public/storage`.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Verification
+
+```bash
+php artisan test
+vendor/bin/pint --test
+npm --prefix QHS run lint
+npm --prefix QHS run build
+composer audit
+npm --prefix QHS audit --omit=dev
+```
+
+The feature suite covers authentication and role boundaries, inactive accounts, borrower identity spoofing, transaction IDOR, custodian laboratory scope, duplicate status transitions, and inventory release after returns.
+
+## Import and export
+
+Equipment import templates and browser-side reports use UTF-8 CSV, which opens directly in Excel and avoids the unpatched vulnerabilities in the former SheetJS dependency. Exports neutralize spreadsheet-formula prefixes. Inventory snapshot exports stream rows instead of retaining the full report in memory.

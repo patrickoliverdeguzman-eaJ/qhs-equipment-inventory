@@ -2,12 +2,11 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class Transaction extends Model
 {
@@ -39,12 +38,12 @@ class Transaction extends Model
      * The attributes that should be cast.
      */
     protected $casts = [
-        'borrow_date'  => 'datetime',
-        'return_date'  => 'datetime',
-        'accepted_at'  => 'datetime',
-        'returned_at'  => 'datetime',
-        'rejected_at'  => 'datetime',
-        'status'       => 'string',
+        'borrow_date' => 'datetime',
+        'return_date' => 'datetime',
+        'accepted_at' => 'datetime',
+        'returned_at' => 'datetime',
+        'rejected_at' => 'datetime',
+        'status' => 'string',
     ];
 
     /**
@@ -72,29 +71,29 @@ class Transaction extends Model
      * Accessor: Return only the date (Y-m-d) in API responses
      */
     /**
- * Accessor: Return only the date (Y-m-d) in API responses
- */
-        public function getBorrowDateAttribute($value)
-        {
-            if (!$value) {
-                return null;
-            }
-
-            // Handle both Carbon instance and raw string
-            return \Carbon\Carbon::parse($value)->format('Y-m-d');
+     * Accessor: Return only the date (Y-m-d) in API responses
+     */
+    public function getBorrowDateAttribute($value)
+    {
+        if (! $value) {
+            return null;
         }
 
-        /**
-         * Accessor: Return only the date (Y-m-d) in API responses
-         */
-        public function getReturnDateAttribute($value)
-        {
-            if (!$value) {
-                return null;
-            }
+        // Handle both Carbon instance and raw string
+        return Carbon::parse($value)->format('Y-m-d');
+    }
 
-            return \Carbon\Carbon::parse($value)->format('Y-m-d');
+    /**
+     * Accessor: Return only the date (Y-m-d) in API responses
+     */
+    public function getReturnDateAttribute($value)
+    {
+        if (! $value) {
+            return null;
         }
+
+        return Carbon::parse($value)->format('Y-m-d');
+    }
 
     /**
      * Get the borrower (user) who made the transaction.
@@ -118,24 +117,15 @@ class Transaction extends Model
     public function assignedItems(): BelongsToMany
     {
         return $this->belongsToMany(EquipmentItem::class, 'transaction_equipment_items')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
-    /**
-     * Get equipment types with calculated quantity (count of assigned units).
-     */
+    /** Get the requested equipment types and quantities. */
     public function equipment(): BelongsToMany
     {
-        return $this->belongsToMany(Equipment::class, 'transaction_equipment_items', 'transaction_id', 'equipment_item_id')
-            ->join('equipment_items', 'transaction_equipment_items.equipment_item_id', '=', 'equipment_items.id')
-            ->select(
-                'equipment.id',
-                'equipment.name',
-                DB::raw('COUNT(*) as quantity'),
-                DB::raw('transaction_equipment_items.transaction_id as pivot_transaction_id'),
-                DB::raw('transaction_equipment_items.equipment_item_id as pivot_equipment_item_id')
-            )
-            ->groupBy('equipment.id', 'equipment.name', 'transaction_equipment_items.transaction_id', 'transaction_equipment_items.equipment_item_id');
+        return $this->belongsToMany(Equipment::class, 'transaction_items')
+            ->withPivot('quantity')
+            ->withTimestamps();
     }
 
     /**

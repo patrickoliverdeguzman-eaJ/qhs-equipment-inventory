@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import axiosClient from "../../axiosClient";
+import axiosClient, { backendBaseUrl } from "../../axiosClient";
+import { useStateContext } from "../../Context/ContextProvider";
+import { writePrintDocument } from '../../printDocument';
+import QRCode from 'qrcode';
 import {
   Table,
   TableBody,
@@ -37,6 +40,8 @@ import Select from "react-select";
 export default function EquipmentInfo() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useStateContext();
+  const equipmentPath = user?.role === 'custodian' ? '/custodian/equipment' : '/admin/equipment';
 
   // ---------------------------------------------------------------------------
   // STATE MANAGEMENT
@@ -60,14 +65,13 @@ export default function EquipmentInfo() {
   // Single QR Preview States
   const [qrPreviewOpen, setQrPreviewOpen] = useState(false);
   const [qrPreviewUrl, setQrPreviewUrl] = useState('');
-  const [qrFallbackTried, setQrFallbackTried] = useState(false);
   const [qrPreviewMeta, setQrPreviewMeta] = useState(null);
   
   // Bulk Selection & Print States
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [bulkPrintOpen, setBulkPrintOpen] = useState(false);
 
-  const BASE_URL = import.meta.env.VITE_APP_URL || "http://127.0.0.1:8000";
+  const BASE_URL = backendBaseUrl;
 
   // ---------------------------------------------------------------------------
   // HELPER FUNCTIONS
@@ -192,16 +196,18 @@ export default function EquipmentInfo() {
     setBulkPrintOpen(true);
   };
 
-  const printBulkQRCodes = () => {
+  const printBulkQRCodes = async () => {
     const selectedItemsArray = items.filter(item => selectedItems.has(item.id));
     
-    // Generate QR codes for all selected items
-    const qrItems = selectedItemsArray.map(item => {
+    const qrItems = await Promise.all(selectedItemsArray.map(async item => {
       const url = `${window.location.origin}/item-history/${item.unit_id}`;
-      // Using 150x150 is usually enough for thermal printers to keep it crisp
-      const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}`;
+      const qrSrc = await QRCode.toDataURL(url, {
+        width: 300,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+      });
       return { item, qrSrc, url };
-    });
+    }));
 
     // Create HTML with optimized layout for 25x15mm Niimbot labels
     // We use a "page" class that forces a page break after every label
@@ -308,8 +314,7 @@ export default function EquipmentInfo() {
       return;
     }
     
-    w.document.write(html);
-    w.document.close(); // Finish writing to the document
+    writePrintDocument(w, html);
     setBulkPrintOpen(false);
 
     // Wait for images to load before printing
@@ -385,7 +390,7 @@ export default function EquipmentInfo() {
         <Typography variant="body1" paragraph>
           No equipment found with ID: <strong>{id}</strong>
         </Typography>
-        <Button component={Link} to="/admin/equipment" variant="contained" sx={{ bgcolor: "maroon" }}>
+        <Button component={Link} to={equipmentPath} variant="contained" sx={{ bgcolor: "maroon" }}>
           Back to Equipment List
         </Button>
       </Container>
@@ -402,7 +407,7 @@ export default function EquipmentInfo() {
       {/* Back Button */}
       <Button
         component={Link}
-        to="/admin/equipment"
+        to={equipmentPath}
         startIcon={<ArrowBackIcon />}
         variant="outlined"
         sx={{ mb: 3, color: "maroon", borderColor: "maroon" }}
@@ -521,7 +526,7 @@ export default function EquipmentInfo() {
               variant="contained"
               startIcon={<AddIcon />}
               sx={{ bgcolor: "maroon", "&:hover": { bgcolor: "darkred" } }}
-              onClick={() => navigate(`/admin/equipment/info/${id}/add-item`)}
+              onClick={() => navigate(`${equipmentPath}/info/${id}/add-item`)}
             >
               Add New Unit
             </Button>
@@ -640,7 +645,7 @@ export default function EquipmentInfo() {
                         <Box sx={{ display: 'flex', gap: 1 }}>
                             {/* Edit Button */}
                             <Tooltip title="Edit Unit">
-                                <Link to={`/admin/equipment/info/${id}/edit-item/${item.id}`}>
+                                <Link to={`${equipmentPath}/info/${id}/edit-item/${item.id}`}>
                                 <IconButton color="primary">
                                     <EditIcon />
                                 </IconButton>
@@ -656,29 +661,8 @@ export default function EquipmentInfo() {
                                     setHistoryOpen(true);
                                     setHistoryLoading(true);
                                     try {
-                                    // Fetch all transactions (adjust limit as needed)
-                                    const { data } = await axiosClient.get('/transactions?per_page=1000');
-                                    const txs = data.data || [];
-
-                                    // We need to fetch details for each transaction to see if this specific unit was involved
-                                    // This is an expensive operation, so we do it carefully
-                                    const detailPromises = txs.map(t =>
-                                        axiosClient.get(`/transactions/${t.id}`).then(r => ({ tx: t, detail: r.data.data })).catch(() => null)
-                                    );
-
-                                    const detailed = (await Promise.all(detailPromises)).filter(Boolean);
-
-                                    // Filter for transactions that include this specific item
-                                    const matched = detailed.filter(({ tx, detail }) => {
-                                        if (!detail || !Array.isArray(detail.equipment)) return false;
-                                        return detail.equipment.some(eq => {
-                                        if (!eq.items || !Array.isArray(eq.items)) return false;
-                                        // Compare ID or Unit ID
-                                        return eq.items.some(itm => String(itm.unit_id) === String(item.unit_id) || String(itm.id) === String(item.id));
-                                        });
-                                    }).map(d => d.tx); // We map back to the transaction object for display
-
-                                    setHistoryData(matched);
+                                    const { data } = await axiosClient.get(`/item/${encodeURIComponent(item.unit_id)}/history`);
+                                    setHistoryData(data.data?.history || []);
                                     } catch (err) {
                                     console.error('Failed to load history', err);
                                     setHistoryData([]);
@@ -695,17 +679,27 @@ export default function EquipmentInfo() {
                             <Tooltip title="Print QR Code">
                                 <IconButton
                                 color="primary"
-                                onClick={() => {
+                                onClick={async () => {
                                     const url = `${window.location.origin}/item-history/${item.unit_id}`;
-                                    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`;
-                                    
-                                    setQrPreviewUrl(qrSrc);
                                     setQrPreviewMeta({ 
                                         item, 
                                         equipmentName: equipment?.name, 
                                         equipment_item_id: item.unit_id 
                                     });
                                     setQrPreviewOpen(true);
+                                    setQrPreviewUrl('');
+
+                                    try {
+                                      setQrPreviewUrl(await QRCode.toDataURL(url, {
+                                        width: 600,
+                                        margin: 2,
+                                        errorCorrectionLevel: 'M',
+                                      }));
+                                    } catch (error) {
+                                      console.error('QR generation failed', error);
+                                      alert('Unable to generate this QR code.');
+                                      setQrPreviewOpen(false);
+                                    }
                                 }}
                                 >
                                 <QrCodeIcon />
@@ -829,20 +823,6 @@ export default function EquipmentInfo() {
               src={qrPreviewUrl}
               alt="qr"
               style={{ maxWidth: '100%', height: 'auto', border: '1px solid #eee' }}
-              onError={() => {
-                if (qrFallbackTried) return;
-                setQrFallbackTried(true);
-                // Fallback to Google Charts API if qrserver fails
-                const url = qrPreviewUrl;
-                try {
-                  const u = new URL(url);
-                  const dataParam = u.searchParams.get('data') || encodeURIComponent(url);
-                  const fallback = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${dataParam}`;
-                  setQrPreviewUrl(fallback);
-                } catch (e) {
-                    console.error("QR Error", e);
-                }
-              }}
             />
           ) : (
             <Typography>Generating QR...</Typography>
@@ -860,8 +840,7 @@ export default function EquipmentInfo() {
                 const html = `<!doctype html><html><head><style>@page{size:25mm 15mm;margin:0}body{margin:0;display:flex;align-items:center;padding:1mm}.qr{width:12mm;height:12mm}.info{margin-left:1mm;font-family:Arial;font-size:5px;font-weight:bold;text-transform:uppercase}.unit{font-family:'Courier New';font-size:6px;margin-top:2px}</style></head><body><img class="qr" src="${qrPreviewUrl}"/><div class="info"><div>${qrPreviewMeta.equipmentName}</div><div class="unit">${qrPreviewMeta.equipment_item_id}</div></div></body></html>`;
                 const w = window.open('', '_blank');
                 if(!w) return alert('Popup blocked');
-                w.document.write(html);
-                w.document.close();
+                writePrintDocument(w, html);
                 setTimeout(()=>w.print(), 300);
             }} 
             variant="contained" 

@@ -2,9 +2,10 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Validation\Rule; // Import the Rule class
 
 class StoreUserRequest extends FormRequest
 {
@@ -13,34 +14,31 @@ class StoreUserRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->isAdmin() === true;
     }
 
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
-        
-            return [
+        return [
             'name' => 'required|string|max:255',
             'email' => [
                 'required',
                 'email',
                 'max:255',
-                Rule::unique('users'), // Ignore the current users email
+                Rule::unique('users'),
             ],
-            'role' => 'required|string|max:255',
-            'isActive' => 'sometimes|string',
-            'avatar' => ' sometimes|nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'role' => 'required|in:admin,custodian,user',
+            'isActive' => 'sometimes|boolean',
+            'avatar' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,webp|max:4096',
             'password' => [
                 'required',
-                Password::min(8)->letters(),
+                Password::min(8)->letters()->numbers(),
             ],
-            ];
-    
-    
+        ];
     }
 }

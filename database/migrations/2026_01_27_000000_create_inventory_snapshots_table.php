@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->date('snapshot_date');
             $table->foreignId('equipment_id')->constrained('equipment')->onDelete('cascade');
-            $table->foreignId('laboratory_id')->constrained('laboratory')->onDelete('cascade');
+            $table->foreignId('laboratory_id')->constrained('laboratories')->onDelete('cascade');
             $table->integer('total_items')->default(0);
             $table->integer('borrowed_count')->default(0);
             $table->integer('available_count')->default(0);

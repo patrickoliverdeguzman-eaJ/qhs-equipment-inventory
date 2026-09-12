@@ -4,57 +4,51 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Laboratory extends Model
 {
     use HasFactory;
 
-    // Specify the table name (optional, if it follows Laravel's naming convention)
-    protected $table = 'laboratory';
+    protected $table = 'laboratories';
 
-    
-    // Define fillable fields for mass assignment
     protected $fillable = [
         'name',
         'location',
         'description',
-        'custodianID',
         'isActive',
         'gallery',
     ];
 
-    // Define guarded fields (alternative to fillable)
-    // protected $guarded = [];
+    protected $casts = [
+        'isActive' => 'boolean',
+    ];
 
-    // Define timestamps (optional, defaults to true)
-    public $timestamps = true;
-    public function items()
-{
-    return $this->hasMany(EquipmentItem::class);
-}
-
-public function borrowLogs()
-{
-    return $this->hasMany(BorrowLog::class);
-}
-    // Define custom date formats (optional)
-
-    // Define relationships (if any)
-    // Example: A laboratory has many users
-    public function users()
+    public function custodians(): BelongsToMany
     {
-        return $this->hasMany(User::class);
+        return $this->belongsToMany(User::class, 'custodian_laboratory')
+            ->withTimestamps();
     }
-    // app/Models/Laboratory.php
-public function transactions()
-{
-    return $this->hasMany(Transaction::class);
-}
 
-public function equipment()
-{
-    return $this->hasMany(Equipment::class);
-}
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
+    }
 
+    public function equipment(): HasMany
+    {
+        return $this->hasMany(Equipment::class);
+    }
+
+    public function items(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            EquipmentItem::class,
+            Equipment::class,
+            'laboratory_id',
+            'equipment_id',
+        );
+    }
 }

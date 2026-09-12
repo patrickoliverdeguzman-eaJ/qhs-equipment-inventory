@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Equipment;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreEquipmentRequest extends FormRequest
@@ -11,24 +13,24 @@ class StoreEquipmentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('create', Equipment::class) === true;
     }
 
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
             'name' => 'required|string|max:255',
-            'image' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'description' => 'sometimes|nullable|max:255',
-            'condition' => 'required|string|max:255',
-            'laboratory_id' => 'required|int',
-            'category_ids' => 'sometimes|array', // Array of category IDs
-            'category_ids.*' => 'integer|exists:categories,id', // Each ID must exist in categories table
+            'image' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,webp|max:4096',
+            'description' => 'sometimes|nullable|string|max:2000',
+            'laboratory_id' => 'required|integer|exists:laboratories,id',
+            'category_ids' => 'sometimes|array|max:20',
+            'category_ids.*' => 'integer|distinct|exists:categories,id',
+            'isActive' => 'sometimes|boolean',
         ];
     }
 }

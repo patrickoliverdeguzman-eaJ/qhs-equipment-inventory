@@ -5,290 +5,193 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreEquipmentRequest;
 use App\Http\Requests\UpdateEquipmentRequest;
 use App\Http\Resources\EquipmentResource;
-use App\Models\Equipment;
-use App\Models\EquipmentItem;
 use App\Models\Category;
+use App\Models\Equipment;
 use App\Models\Laboratory;
 use App\Traits\ActionLogger;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class EquipmentController extends Controller
 {
     use ActionLogger;
 
-    /**
-     * Full data for admin dashboard (cached)
-     */
-    public function data()
-{
-    $query = Equipment::with(['categories', 'items'])
-        ->select('id', 'name', 'description', 'image', 'laboratory_id', 'isActive')
-        ->where('isActive', true);
-    
-    // If user is custodian, filter by their laboratory
-    if (auth()->user()->role === 'custodian') {
-        $lab = Laboratory::where('custodianID', auth()->id())->first();
-        if ($lab) {
-            $query->where('laboratory_id', $lab->id);
-        } else {
-            return [
-                'equipment' => [],
-                'laboratories' => [],
-                'categories' => [],
-            ];
+    public function data(Request $request): array
+    {
+        $equipment = $this->visibleQuery($request)
+            ->with(['categories:id,name', 'items:id,equipment_id,unit_id,condition,isBorrowed'])
+            ->latest('id')
+            ->limit(500)
+            ->get();
+
+        $laboratories = Laboratory::query()->select('id', 'name');
+
+        if ($request->user()->isCustodian()) {
+            $laboratories->whereHas('custodians', fn (Builder $query) => $query->whereKey($request->user()->id));
+        } elseif ($request->user()->role === 'user') {
+            $laboratories->where('isActive', true);
         }
-    }
-    
-    $equipment = $query->orderByDesc('id')->limit(200)->get();
-
-    $equipmentData = $equipment->map(function ($eq) {
-        $items = $eq->items;
-
-        $total       = $items->count();
-        $borrowed    = $items->where('isBorrowed', true)->count();
-        // Handle condition field - count items that are not in good condition
-        $unavailable = $items->filter(function($item) {
-            $condition = $item->condition ?? 'Good';
-            // Unavailable if condition is Damaged, Missing, or Under Repair
-            return in_array($condition, ['Damaged', 'Missing', 'Under Repair']);
-        })->count();
-        
-        $available = $total - $borrowed - $unavailable;
 
         return [
-            'id'                  => $eq->id,
-            'name'                => $eq->name,
-            'description'         => $eq->description ?? '',
-            'image'               => $eq->image,
-            'laboratory_id'       => $eq->laboratory_id,
-            'isActive'            => (bool) $eq->isActive,
-
-            'total_quantity'      => $total,
-            'borrowed_quantity'   => $borrowed,
-            'available_quantity'  => $available,
-            'quantity'            => $available,
-
-            'categories' => $eq->categories->map(fn($c) => [
-                'id'   => $c->id,
-                'name' => $c->name
-            ])->values()->toArray(),
-
-            'items' => $items->map(fn($i) => [
-                'id'         => $i->id,
-                'unit_id'    => $i->unit_id,
-                'condition'  => $i->condition,
-                'isBorrowed' => (bool) $i->isBorrowed,
-            ])->values()->toArray(),
+            'equipment' => EquipmentResource::collection($equipment)->resolve(),
+            'laboratories' => $laboratories->orderBy('name')->get(),
+            'categories' => Category::query()->select('id', 'name')->orderBy('name')->get(),
         ];
-    });
-
-    return [
-        'equipment'    => $equipmentData->values()->toArray(),
-        'laboratories' => Laboratory::select('id', 'name')->orderBy('name')->get(),
-        'categories'   => Category::select('id', 'name')->orderBy('name')->get(),
-    ];
-}
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Equipment $equipment)
-    {
-        // If user is custodian, verify they can access this equipment
-        if (auth()->user()->role === 'custodian') {
-            $lab = Laboratory::where('custodianID', auth()->id())->first();
-            if (!$lab || $equipment->laboratory_id !== $lab->id) {
-                return response()->json(['message' => 'Unauthorized'], 403);
-            }
-        }
-        
-        $equipment->loadMissing(['categories', 'items']);
-
-        $items = $equipment->items;
-        $total = $items->count();
-        $borrowed = $items->where('isBorrowed', true)->count();
-        // Handle condition field
-        $unavailable = $items->filter(function($item) {
-            $condition = $item->condition ?? null;
-            // Unavailable if condition is Damaged, Missing, or Under Repair
-            return in_array($condition, ['Damaged', 'Missing', 'Under Repair']);
-        })->count();
-
-        $equipment->available_quantity = $total - $borrowed - $unavailable;
-        $equipment->total_quantity = $total;
-
-        return new EquipmentResource($equipment);
     }
 
-    /**
-     * List all equipment (used in other places)
-     */
     public function index(Request $request)
     {
-        $query = Equipment::with(['categories', 'items']);
-        
-        // If user is custodian, filter by their laboratory
-        if (auth()->user()->role === 'custodian') {
-            $lab = Laboratory::where('custodianID', auth()->id())->first();
-            if ($lab) {
-                $query->where('laboratory_id', $lab->id);
-            } else {
-                return response()->json([], 200); // Return empty if no lab assigned
-            }
+        $query = $this->visibleQuery($request)
+            ->with(['categories:id,name', 'items:id,equipment_id,unit_id,condition,isBorrowed']);
+
+        if ($request->filled('laboratory_id')) {
+            $query->where('laboratory_id', $request->integer('laboratory_id'));
         }
-        
-        // Allow filtering by laboratory_id
-        if ($request->has('laboratory_id')) {
-            $query->where('laboratory_id', $request->laboratory_id);
-        }
-        
-        $equipment = $query->get();
 
-        return EquipmentResource::collection($equipment->map(function ($eq) {
-            $items = $eq->items;
-            $total = $items->count();
-            $borrowed = $items->where('isBorrowed', true)->count();
-            // Handle condition field
-            $unavailable = $items->filter(function($item) {
-                $condition = $item->condition ?? null;
-                // Unavailable if condition is Damaged, Missing, or Under Repair
-                return in_array($condition, ['Damaged', 'Missing', 'Under Repair']);
-            })->count();
-
-            $eq->available_quantity = $total - $borrowed - $unavailable;
-            $eq->total_quantity = $total;
-
-            return $eq;
-        }));
+        return EquipmentResource::collection($query->orderBy('name')->limit(500)->get());
     }
 
-    /**
-     * Store a new equipment
-     */
+    public function show(Request $request, Equipment $equipment)
+    {
+        $this->authorize('view', $equipment);
+
+        return new EquipmentResource($equipment->load(['categories:id,name', 'items']));
+    }
+
     public function store(StoreEquipmentRequest $request)
     {
-        // Only admins can create equipment
-        if (auth()->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
         $data = $request->validated();
+        $categoryIds = Arr::pull($data, 'category_ids', []);
+        $laboratory = Laboratory::findOrFail($data['laboratory_id']);
 
-        if ($request->hasFile('image')) {
-            $file = $request->file('image');
-            $filename = Str::random(32) . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('itemImage', $filename, 'public');
-            $data['image'] = $path;
-        } else {
-            $data['image'] = 'itemImage/No-image-default.png';
+        if (! $request->user()->managesLaboratory($laboratory->id)) {
+            abort(403, 'You may only add equipment to a laboratory assigned to you.');
         }
 
-        $equipment = Equipment::create($data);
+        $this->storeImage($request, $data);
+        $data['image'] ??= 'itemImage/No-image-default.png';
 
-        if (!empty($data['category_ids']) && is_array($data['category_ids'])) {
-            $equipment->categories()->sync($data['category_ids']);
-        }
+        $equipment = DB::transaction(function () use ($data, $categoryIds) {
+            $equipment = Equipment::create($data);
+            $equipment->categories()->sync($categoryIds);
 
-        Cache::forget('equipment_data');
+            return $equipment;
+        });
 
         $this->logAction('equipment_created', ['equipment_id' => $equipment->id]);
 
-        return new EquipmentResource($equipment->load('categories', 'items'));
+        return (new EquipmentResource($equipment->load(['categories', 'items'])))
+            ->response()
+            ->setStatusCode(201);
     }
 
-    /**
-     * Update equipment
-     */
     public function update(UpdateEquipmentRequest $request, Equipment $equipment)
     {
-        // Only admins can update equipment
-        if (auth()->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
         $data = $request->validated();
+        $hasCategories = array_key_exists('category_ids', $data);
+        $categoryIds = Arr::pull($data, 'category_ids', []);
+        $removeImage = (bool) Arr::pull($data, 'remove_image', false);
+        $oldImage = null;
 
-        // Handle image
+        if (isset($data['laboratory_id']) && ! $request->user()->managesLaboratory((int) $data['laboratory_id'])) {
+            abort(403, 'You may only move equipment to a laboratory assigned to you.');
+        }
+
         if ($request->hasFile('image')) {
-            if ($equipment->image && $equipment->image !== 'itemImage/No-image-default.png') {
-                Storage::disk('public')->delete($equipment->image);
-            }
-            $file = $request->file('image');
-            $filename = Str::random(32) . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('itemImage', $filename, 'public');
-            $data['image'] = $path;
-        } elseif ($request->has('remove_image')) {
-            if ($equipment->image && $equipment->image !== 'itemImage/No-image-default.png') {
-                Storage::disk('public')->delete($equipment->image);
-            }
+            $oldImage = $equipment->image;
+            $this->storeImage($request, $data);
+        } elseif ($removeImage) {
+            $oldImage = $equipment->image;
             $data['image'] = null;
         }
 
-        $equipment->update($data);
+        DB::transaction(function () use ($equipment, $data, $hasCategories, $categoryIds) {
+            $equipment->update($data);
 
-        if ($request->has('category_ids')) {
-            $equipment->categories()->sync($request->category_ids ?? []);
-        }
+            if ($hasCategories) {
+                $equipment->categories()->sync($categoryIds);
+            }
+        });
 
-        Cache::forget('equipment_data');
+        $this->deleteManagedImage($oldImage);
 
         $this->logAction('equipment_updated', ['equipment_id' => $equipment->id]);
 
-        return new EquipmentResource($equipment->load('categories', 'items'));
+        return new EquipmentResource($equipment->fresh()->load(['categories', 'items']));
     }
 
-    /**
-     * Delete equipment
-     */
     public function destroy(Equipment $equipment)
     {
-        // Only admins can delete equipment
-        if (auth()->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-        
-        if ($equipment->image && $equipment->image !== 'itemImage/No-image-default.png') {
-            Storage::disk('public')->delete($equipment->image);
+        $this->authorize('delete', $equipment);
+
+        if ($equipment->items()->exists() || $equipment->transactions()->exists()) {
+            throw ValidationException::withMessages([
+                'equipment' => ['Archive this equipment instead; it has inventory units or transaction history.'],
+            ]);
         }
 
+        $this->deleteManagedImage($equipment->image);
         $equipment->delete();
-        Cache::forget('equipment_data');
-
         $this->logAction('equipment_deleted', ['equipment_id' => $equipment->id]);
 
-        return response()->json(null, 204);
+        return response()->noContent();
     }
 
-    /**
- * Toggle equipment active status (Archive/Unarchive)
- */
     public function toggleActive(Equipment $equipment)
     {
-        // Only admins can toggle equipment active status
-        if (auth()->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-        
-        // Check if any items are borrowed
-        $borrowedCount = $equipment->items()->where('isBorrowed', true)->count();
+        $this->authorize('delete', $equipment);
 
-        if ($borrowedCount > 0) {
-            return response()->json([
-                'message' => "Cannot change status: {$borrowedCount} unit(s) are currently borrowed."
-            ], 422);
+        if ($equipment->items()->where('isBorrowed', true)->exists()) {
+            throw ValidationException::withMessages([
+                'equipment' => ['Equipment with borrowed units cannot be archived.'],
+            ]);
         }
 
-        $equipment->isActive = !$equipment->isActive;
-        $equipment->save();
-
-        Cache::forget('equipment_data');
-
-        $this->logAction('equipment_toggled_active', ['equipment_id' => $equipment->id, 'isActive' => (bool)$equipment->isActive]);
+        $equipment->update(['isActive' => ! $equipment->isActive]);
+        $this->logAction('equipment_toggled_active', [
+            'equipment_id' => $equipment->id,
+            'isActive' => $equipment->isActive,
+        ]);
 
         return response()->json([
-            'message' => 'Status updated successfully',
-            'isActive' => (bool) $equipment->isActive
+            'message' => 'Equipment status updated.',
+            'isActive' => $equipment->isActive,
         ]);
+    }
+
+    private function visibleQuery(Request $request): Builder
+    {
+        $query = Equipment::query();
+        $user = $request->user();
+
+        if ($user->isCustodian()) {
+            $query->whereHas('laboratory.custodians', fn (Builder $builder) => $builder->whereKey($user->id));
+        } elseif ($user->role === 'user') {
+            $query->where('isActive', true)->whereHas('laboratory', fn (Builder $builder) => $builder->where('isActive', true));
+        }
+
+        return $query;
+    }
+
+    private function storeImage(Request $request, array &$data): void
+    {
+        if (! $request->hasFile('image')) {
+            return;
+        }
+
+        $file = $request->file('image');
+        $data['image'] = $file->storeAs('itemImage', Str::random(32).'.'.$file->extension(), 'public');
+    }
+
+    private function deleteManagedImage(?string $path): void
+    {
+        if ($path && $path !== 'itemImage/No-image-default.png') {
+            Storage::disk('public')->delete($path);
+        }
     }
 }
