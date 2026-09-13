@@ -1,0 +1,52 @@
+services:
+  - type: web
+    name: qhs-equipment-inventory
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /up
+    envVars:
+      - key: APP_NAME
+        value: QHS Equipment Inventory
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        generateValue: true
+      - key: APP_TIMEZONE
+        value: Asia/Manila
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_URL
+        fromDatabase:
+          name: qhs-equipment-inventory-db
+          property: connectionString
+      - key: SESSION_DRIVER
+        value: database
+      - key: SESSION_ENCRYPT
+        value: "true"
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: BROADCAST_CONNECTION
+        value: log
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: warning
+      - key: MAIL_MAILER
+        value: log
+
+databases:
+  - name: qhs-equipment-inventory-db
+    plan: free
+    region: singapore
+    postgresMajorVersion: "17"
+    ipAllowList: []

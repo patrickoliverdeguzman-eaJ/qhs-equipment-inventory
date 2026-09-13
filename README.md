@@ -69,6 +69,12 @@ php artisan optimize
 
 The web server document root must be `public/`. Uploaded files are served through `public/storage`.
 
+## Render deployment
+
+The repository includes a production Docker image and `render.yaml` Blueprint for a single-service HTTPS deployment backed by Render Postgres. Deploy the Blueprint from the repository root; Render supplies `APP_KEY`, `DB_URL`, and its public URL automatically. The container runs migrations and Laravel cache warm-up before Apache starts.
+
+The free Render plans are suitable for previews: the web service sleeps when idle, uploaded files use ephemeral local storage, and the free PostgreSQL database expires after 30 days. Use paid persistent storage and a configured mail provider for a permanent production installation. Reverb is disabled in the one-port preview deployment; the interface continues to work using normal API refreshes.
+
 ## Verification
 
 ```bash

@@ -13,7 +13,13 @@ const fallbackEcho = {
   socketId: () => null,
 };
 
+const realtimeEnabled = import.meta.env.DEV || import.meta.env.VITE_REVERB_ENABLED === 'true';
+
 try {
+  if (!realtimeEnabled) {
+    throw new Error('Realtime broadcasting is not configured for this deployment.');
+  }
+
   window.Echo = new Echo({
     broadcaster: 'reverb',
     key: import.meta.env.VITE_REVERB_APP_KEY || 'qhs-local-key',

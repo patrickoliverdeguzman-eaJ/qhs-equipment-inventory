@@ -21,6 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ['middleware' => ['api', 'auth:sanctum', 'abilities:app:use', 'active']],
     )
     ->withMiddleware(function (Middleware $middleware) {
+        if (env('RENDER')) {
+            $middleware->trustProxies(at: '*');
+        }
+
         $middleware->append(SecurityHeaders::class);
 
         $middleware->alias([
