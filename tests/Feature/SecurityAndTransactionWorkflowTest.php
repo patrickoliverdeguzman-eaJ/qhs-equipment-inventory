@@ -18,6 +18,10 @@ class SecurityAndTransactionWorkflowTest extends TestCase
 
     public function test_sensitive_routes_require_authentication_and_admin_role(): void
     {
+        $this->get('/api/laboratories')
+            ->assertUnauthorized()
+            ->assertJsonPath('message', 'Unauthenticated.');
+
         $this->getJson('/api/users')
             ->assertUnauthorized()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
