@@ -183,8 +183,10 @@ export default function AdminDashboard() {
   const fetchRecentLogs = useCallback(async () => {
     setLoadingLogs(true);
     try {
-      const { data } = await axiosClient.get('/logs?per_page=6');
-      const items = data.data || [];
+      // The logs endpoint accepts page sizes from 10 to 100. Fetch its
+      // smallest valid page and keep this compact dashboard feed at six rows.
+      const { data } = await axiosClient.get('/logs?per_page=10');
+      const items = (data.data || []).slice(0, 6);
       setRecentLogs(items.map(i => ({ ...i, message: i.friendly_message || formatLogMessage(i) })));
     } catch (e) {
       console.error('Failed to load recent logs', e);
@@ -220,8 +222,11 @@ export default function AdminDashboard() {
     };
     window.addEventListener('transactions:changed', handler);
     window.addEventListener('logs:changed', fetchRecentLogs);
-    return () => window.removeEventListener('transactions:changed', handler);
-  }, [fetchRecentTransactions]);
+    return () => {
+      window.removeEventListener('transactions:changed', handler);
+      window.removeEventListener('logs:changed', fetchRecentLogs);
+    };
+  }, [fetchRecentLogs, fetchRecentTransactions]);
 
   // Poll for updates as a fallback (runs only when tab is visible)
   useEffect(() => {
