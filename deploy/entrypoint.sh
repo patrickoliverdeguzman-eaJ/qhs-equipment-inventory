@@ -24,6 +24,14 @@ sed -ri "s/<VirtualHost \*:[0-9]+>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-
 
 php artisan storage:link --force
 php artisan migrate --force
+
+if [ -n "${BOOTSTRAP_ADMIN_EMAIL:-}" ]; then
+    php artisan app:create-admin "$BOOTSTRAP_ADMIN_EMAIL" \
+        --name="${BOOTSTRAP_ADMIN_NAME:-Administrator}" \
+        --password-env=BOOTSTRAP_ADMIN_PASSWORD \
+        --no-interaction
+fi
+
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache

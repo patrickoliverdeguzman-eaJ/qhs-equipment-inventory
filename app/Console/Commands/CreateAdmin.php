@@ -12,7 +12,10 @@ use function Laravel\Prompts\text;
 
 class CreateAdmin extends Command
 {
-    protected $signature = 'app:create-admin {email : The administrator email address}';
+    protected $signature = 'app:create-admin
+                            {email : The administrator email address}
+                            {--name= : Administrator name for non-interactive creation}
+                            {--password-env= : Environment variable containing the initial password}';
 
     protected $description = 'Create an administrator or promote an existing account';
 
@@ -40,12 +43,42 @@ class CreateAdmin extends Command
             return self::SUCCESS;
         }
 
-        $name = text(label: 'Administrator name', required: true);
-        $plainPassword = password(
-            label: 'Password',
-            required: true,
-            validate: fn (string $value) => strlen($value) >= 12 ? null : 'Use at least 12 characters.',
+        $name = trim((string) $this->option('name'));
+        if ($name === '') {
+            $name = text(label: 'Administrator name', required: true);
+        }
+
+        $passwordEnvironment = trim((string) $this->option('password-env'));
+        if ($passwordEnvironment !== '') {
+            $environmentPassword = getenv($passwordEnvironment);
+            if (! is_string($environmentPassword) || $environmentPassword === '') {
+                $this->error("The {$passwordEnvironment} environment variable is required.");
+
+                return self::FAILURE;
+            }
+
+            $plainPassword = $environmentPassword;
+        } else {
+            $plainPassword = password(
+                label: 'Password',
+                required: true,
+                validate: fn (string $value) => strlen($value) >= 12 ? null : 'Use at least 12 characters.',
+            );
+        }
+
+        $credentials = Validator::make(
+            ['name' => $name, 'password' => $plainPassword],
+            [
+                'name' => ['required', 'string', 'max:255'],
+                'password' => ['required', 'string', 'min:12'],
+            ],
         );
+
+        if ($credentials->fails()) {
+            $this->error($credentials->errors()->first());
+
+            return self::FAILURE;
+        }
 
         User::create([
             'name' => $name,
