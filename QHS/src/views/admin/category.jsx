@@ -26,6 +26,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import { Box, TextField } from "@mui/material";
 import { Avatar, Typography } from "@mui/material";
 import { getInitials } from "../../utils";
+import PageHeader from "../../Components/PageHeader";
 
 export default function Category() {
   const [categories, setCategories] = useState([]);
@@ -150,40 +151,29 @@ export default function Category() {
     );
   };
 
+  const searchedCategories = searchData(filteredCategories);
+
   return (
-    <div>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableRow>
-            <TableCell sx={{ maxWidth: '250px' }}>
-              <Typography variant="h9" sx={{ fontSize: '2.5vh', color: 'Maroon', overflowWrap: "break-word" }}>
-                List of Categories
-              </Typography>
-              <Typography sx={{ color: 'gray', overflowWrap: "break-word" }}>
-                A list of all categories. Here you can create, edit, and
-                remove categories.
-              </Typography>
-            </TableCell>
-            <TableCell align="center">
-              <input
-                type="text"
-                placeholder="Search Categories..."
-                onChange={(e) => setQuery(e.target.value)}
-                elevation={6} />
-            </TableCell>
-            <TableCell align="right">
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                sx={{ backgroundColor: "white", color: "maroon" }}
-                onClick={() => handleOpenCategoryModal()}
-              >
-                Add new Category
-              </Button>
-            </TableCell>
-          </TableRow>
-        </Table>
-      </TableContainer>
+    <Box>
+      <PageHeader
+        eyebrow="Catalog"
+        title="Equipment categories"
+        description="Organize equipment into clear categories for faster browsing and reporting."
+        actions={(
+          <>
+            <TextField
+              size="small"
+              label="Search categories"
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setPage(0); }}
+              sx={{ minWidth: { sm: 230 } }}
+            />
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenCategoryModal()}>
+              Add category
+            </Button>
+          </>
+        )}
+      />
 
       {/* Table with sticky header */}
       <TableContainer component={Paper} elevation={3} 
@@ -192,7 +182,7 @@ export default function Category() {
        }}>
         <Table aria-label="sticky table" stickyHeader>
           <TableHead>
-            <TableRow sx={{ "& th": { color: "White", backgroundColor: "maroon", position: 'sticky', top: 0, zIndex: 1 } }}>
+            <TableRow>
               <TableCell>ID</TableCell>
               <TableCell>NAME</TableCell>
               <TableCell>CREATED</TableCell>
@@ -211,14 +201,14 @@ export default function Category() {
           )}
           {!loading && (
             <TableBody>
-              {filteredCategories.length === 0 ? (
+              {searchedCategories.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} align="center">
-                    No Category Found
+                    No categories match your search.
                   </TableCell>
                 </TableRow>
               ) : (
-                searchData(filteredCategories).slice(page * rowsPerPage, (page + 1) * rowsPerPage).map((c) => (
+                searchedCategories.slice(page * rowsPerPage, (page + 1) * rowsPerPage).map((c) => (
                   <TableRow key={c.id}>
                     <TableCell>{c.id}</TableCell>
                     <TableCell>{c.name}</TableCell>
@@ -253,7 +243,7 @@ export default function Category() {
       </TableContainer>
       <TablePagination
           component="div"
-          count={filteredCategories.length}
+          count={searchedCategories.length}
           page={page}
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
@@ -269,17 +259,17 @@ export default function Category() {
         aria-describedby="alert-dialog-description"
       >
         <DialogTitle id="alert-dialog-title" color="error">
-          CATEGORY DELETION
+          Delete category?
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-description">
-            Are you sure you want to delete this category?
+            This permanently removes the category. Equipment using it may need to be reassigned.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDeleteDialog}>No</Button>
-          <Button onClick={() => onDeleteClick(selectedCategory)} autoFocus>
-            Yes
+          <Button onClick={handleCloseDeleteDialog}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={() => onDeleteClick(selectedCategory)} autoFocus>
+            Delete category
           </Button>
         </DialogActions>
       </Dialog>
@@ -309,11 +299,11 @@ export default function Category() {
           <Button onClick={handleCloseCategoryModal} color="primary">
             Cancel
           </Button>
-          <Button onClick={handleCategoryFormSubmit} color="primary">
+          <Button onClick={handleCategoryFormSubmit} variant="contained">
             {categoryForm.id ? "Update" : "Save"}
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </Box>
   );
 }

@@ -1,5 +1,5 @@
 // src/views/admin/laboratories.jsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import axiosClient, { assetUrl } from "../../axiosClient";
 
@@ -13,13 +13,8 @@ import {
   Button,
   CardActionArea,
   CardActions,
-  TableContainer,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
   Paper,
+  Alert,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -29,10 +24,13 @@ import {
   Divider,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
+import PageHeader from "../../Components/PageHeader";
 
 export default function Laboratories() {
   const [laboratories, setLaboratories] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   // Dialog state
   const [open, setOpen] = useState(false);
@@ -41,6 +39,7 @@ export default function Laboratories() {
   // Fetch labs
   const fetchLabs = () => {
     setLoading(true);
+    setError('');
     axiosClient
       .get("/laboratories")
       .then(({ data }) => {
@@ -49,6 +48,7 @@ export default function Laboratories() {
       })
       .catch((err) => {
         console.error("Failed to fetch labs:", err);
+        setError('Laboratories could not be loaded. Please try again.');
         setLoading(false);
       });
   };
@@ -80,46 +80,26 @@ export default function Laboratories() {
       })
       .catch((err) => {
         console.error("Delete failed:", err.response?.data || err.message);
-        alert("Failed to delete laboratory. Check console for details.");
+        setError(err.response?.data?.message || 'The laboratory could not be deleted.');
         handleClose();
       });
   };
 
   return (
     <>
-      <Box sx={{ p: 0 }}>
-        {/* Header */}
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ backgroundColor: "white" }}>
-                  <Typography variant="h5" sx={{ color: "maroon" }}>
-                    List of Laboratories
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "gray" }}>
-                    Browse and manage the available laboratories.
-                  </Typography>
-                </TableCell>
-                <TableCell align="right" sx={{ backgroundColor: "white" }}>
-                  <Link to="new" style={{ textDecoration: "none" }}>
-                    <Button
-                      variant="contained"
-                      startIcon={<AddIcon />}
-                      sx={{
-                        backgroundColor: "white",
-                        color: "maroon",
-                        "&:hover": { backgroundColor: "#f5f5f5" },
-                      }}
-                    >
-                      Add new Laboratory
-                    </Button>
-                  </Link>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-          </Table>
-        </TableContainer>
+      <Box>
+        <PageHeader
+          eyebrow="Facilities"
+          title="Laboratories"
+          description="Browse laboratory spaces, manage their details, and review assigned equipment."
+          actions={(
+            <Button component={Link} to="new" variant="contained" startIcon={<AddIcon />}>
+              Add laboratory
+            </Button>
+          )}
+        />
+
+        {error && <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2 }}>{error}</Alert>}
 
         {/* Labs Grid */}
         <Box sx={{ boxShadow: "none", mt: 2 }}>
@@ -128,26 +108,26 @@ export default function Laboratories() {
               <CircularProgress />
             </Box>
           ) : laboratories.length === 0 ? (
-            <Box sx={{ textAlign: 'center', p: 3 }}>
+            <Paper sx={{ textAlign: 'center', p: { xs: 4, sm: 7 } }}>
+              <ScienceOutlinedIcon color="disabled" sx={{ fontSize: 48, mb: 1.5 }} />
               <Typography variant="body1" color="text.secondary">
-                No laboratories found.
+                No laboratories have been added yet.
               </Typography>
-            </Box>
+              <Button component={Link} to="new" variant="outlined" sx={{ mt: 2 }}>Add the first laboratory</Button>
+            </Paper>
           ) : (
-            <Grid container spacing={2} sx={{ p: 3 }}>
+            <Grid container spacing={{ xs: 2, md: 2.5 }}>
               {laboratories.map((lab) => (
-                <Grid item xs={12} sm={6} md={3} key={lab.id}>
+                <Grid item xs={12} sm={6} lg={4} xl={3} key={lab.id}>
                   <Card
                     sx={{
-                      maxWidth: 320,
-                      height: 320,
-                      borderRadius: 3,
-                      boxShadow: '0 4px 16px rgba(80,80,80,0.12)',
-                      background: 'linear-gradient(135deg, #fff 80%, #f5f5fa 100%)',
-                      transition: 'box-shadow 0.3s, transform 0.3s',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      transition: 'border-color 0.2s, transform 0.2s',
                       '&:hover': {
-                        boxShadow: '0 8px 24px rgba(80,80,80,0.18)',
-                        transform: 'translateY(-4px) scale(1.03)',
+                        borderColor: 'primary.light',
+                        transform: 'translateY(-2px)',
                       },
                     }}
                     elevation={0}
@@ -158,7 +138,7 @@ export default function Laboratories() {
                       style={{ textDecoration: "none" }}
                     >
                       <Box sx={{
-                        height: 140,
+                        height: 168,
                         overflow: 'hidden',
                         borderTopLeftRadius: 12,
                         borderTopRightRadius: 12,
@@ -166,7 +146,7 @@ export default function Laboratories() {
                       }}>
                         <CardMedia
                           component="img"
-                          height="140"
+                          height="168"
                           image={
                             lab.gallery
                               ? assetUrl(`/storage/${lab.gallery}`)
@@ -182,21 +162,19 @@ export default function Laboratories() {
                           }}
                         />
                       </Box>
-                      <CardContent sx={{ p: 2, height: 81 }}>
+                      <CardContent sx={{ p: 2.25 }}>
                         <Typography
                           gutterBottom
-                          variant="h5"
+                          variant="h6"
                           sx={{
-                            height: "33px",
-                            overflow: "hidden",
-                            color: "maroon",
+                            color: "text.primary",
                           }}
                         >
                           {lab.name}
                         </Typography>
                         <Typography
                           variant="caption"
-                          sx={{ color: '#888', display: 'block', mt: 0.5 }}
+                          sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}
                         >
                           ID: {lab.id}
                         </Typography>
@@ -212,7 +190,7 @@ export default function Laboratories() {
                     <CardActions sx={{ justifyContent: "flex-end" }}>
                       <Link to={`${lab.id}`} style={{ textDecoration: "none" }}>
                         <Button size="small" color="primary">
-                          EDIT
+                          Edit
                         </Button>
                       </Link>
                       <Button
@@ -241,9 +219,9 @@ export default function Laboratories() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>No</Button>
-          <Button onClick={confirmDelete} color="error" autoFocus>
-            Yes, Delete
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={confirmDelete} color="error" variant="contained" autoFocus>
+            Delete laboratory
           </Button>
         </DialogActions>
       </Dialog>

@@ -2,7 +2,7 @@ import React, { useEffect, useState, memo } from 'react';
 import axiosClient from '../../axiosClient';
 import { writePrintDocument } from '../../printDocument';
 import {
-  Box, Button, Paper, Typography, Grid, Table, TableHead, TableRow, TableCell, TableBody,
+  Box, Button, Paper, Typography, Grid, Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, FormControl, InputLabel,
   CircularProgress, Alert, Chip, useTheme, useMediaQuery, IconButton, Tooltip
 } from '@mui/material';
@@ -909,11 +909,23 @@ export default memo(function DailyInventorySnapshots() {
   return (
     <Box>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', md: 'row' },
+        justifyContent: 'space-between',
+        alignItems: { xs: 'stretch', md: 'center' },
+        gap: 2,
+        mb: 3,
+      }}>
         <Typography variant="h6" fontWeight="bold">
           Daily Inventory Snapshots
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 1,
+          '& > button': { flex: { xs: '1 1 100%', sm: '1 1 auto', md: 'initial' } },
+        }}>
           <Button
             variant="outlined"
             startIcon={<Download />}
@@ -1011,7 +1023,8 @@ export default memo(function DailyInventorySnapshots() {
           <Typography variant="h6" gutterBottom sx={{ color: theme.palette.text.primary }}>
             Daily Inventory Snapshots
           </Typography>
-          <Table size="small">
+          <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 760 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? '#424242' : '#f5f5f5' }}>
                 <TableCell><strong>Snapshot Date</strong></TableCell>
@@ -1053,6 +1066,7 @@ export default memo(function DailyInventorySnapshots() {
               ))}
             </TableBody>
           </Table>
+          </TableContainer>
         </Paper>
       )}
 

@@ -39,6 +39,7 @@ import { getInitials } from "../../utils";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import PageHeader from "../../Components/PageHeader";
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -271,73 +272,42 @@ export default function Users() {
   const inactiveCount = filteredUsers.filter(u => !u.isActive).length;
 
   return (
-    <Box sx={{ p: { xs: 1, sm: 2 } }}>
-      {/* Responsive Header */}
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={2}
-        alignItems={{ xs: 'stretch', sm: 'center' }}
-        justifyContent="space-between"
-        sx={{ mb: 2 }}
-      >
-        <Box sx={{ maxWidth: { xs: '100%', sm: '250px' } }}>
-          <Typography
-            variant="h6"
-            sx={{
-              fontSize: { xs: '1.5rem', sm: '2.5vh' },
-              color: 'maroon',
-              overflowWrap: "break-word"
-            }}
-          >
-            List of Users
-          </Typography>
-          <Typography
-            sx={{
-              color: 'gray',
-              overflowWrap: "break-word",
-              fontSize: { xs: '0.9rem', sm: '1rem' }
-            }}
-          >
-            A list of all registered user accounts. Here you can create, edit, and
-            remove users, as well as manage their roles and statuses.
-          </Typography>
-        </Box>
-        <Box sx={{ width: { xs: '100%', sm: 'auto' }, flexGrow: { sm: 1 } }}>
+    <Box>
+      <PageHeader
+        eyebrow="Access control"
+        title="Users"
+        description="Manage registered accounts, roles, and access status."
+        actions={(
+          <>
           <TextField
             type="text"
-            placeholder="Search Users..."
+            label="Search users"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             variant="outlined"
             size="small"
-            sx={{ width: '100%' }}
+            sx={{ minWidth: { sm: 240 } }}
           />
-        </Box>
-        <Box>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            sx={{
-              backgroundColor: "white",
-              color: "maroon",
-              whiteSpace: 'nowrap',
-              width: { xs: '100%', sm: 'auto' }
-            }}
             onClick={() => handleOpenUserModal()}
           >
-            Add new User
+            Add user
           </Button>
-        </Box>
-      </Stack>
+          </>
+        )}
+      />
 
       {/* Total Users + Active/Inactive Breakdown */}
       <Box
         sx={{
           mb: 2,
           p: 2,
-          backgroundColor: "maroon",
-          color: "white",
-          borderRadius: 1,
+          backgroundColor: "background.paper",
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 2.5,
           display: "flex",
           flexDirection: { xs: "column", sm: "row" },
           justifyContent: "space-between",
@@ -350,17 +320,17 @@ export default function Users() {
             Total Users: <strong>{filteredUsers.length}</strong>
             {query && (
               <Typography component="span" sx={{ fontSize: "0.9rem", opacity: 0.9, ml: 1 }}>
-                (from {users.length})
+                of {users.length}
               </Typography>
             )}
           </Typography>
         </Box>
         <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", fontSize: "0.95rem" }}>
           <Typography>
-            Active: <strong style={{ color: "#90EE90" }}>{activeCount}</strong>
+            Active: <strong>{activeCount}</strong>
           </Typography>
           <Typography>
-            Inactive: <strong style={{ color: "#FFB6C1" }}>{inactiveCount}</strong>
+            Inactive: <strong>{inactiveCount}</strong>
           </Typography>
           {loading && (
             <Typography sx={{ fontStyle: "italic", opacity: 0.8 }}>
@@ -374,7 +344,7 @@ export default function Users() {
       <TableContainer component={Paper} elevation={3}>
         <Table sx={{ tableLayout: 'auto', minWidth: { xs: 600, sm: 800 } }}>
           <TableHead>
-            <TableRow sx={{ "& th": { color: "white", backgroundColor: "maroon" } }}>
+            <TableRow>
               <TableCell sx={{ minWidth: 50, p: { xs: 0.5, sm: 1 } }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <span>ID</span>

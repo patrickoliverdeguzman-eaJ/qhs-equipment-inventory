@@ -23,7 +23,8 @@ import {
   UploadFile as UploadFileIcon,
   Download as DownloadIcon,
   ErrorOutline as ErrorIcon,
-  Unarchive as UnarchiveIcon
+  Unarchive as UnarchiveIcon,
+  Inventory2Outlined as EmptyEquipmentIcon
 } from "@mui/icons-material";
 
 
@@ -55,6 +56,10 @@ export default memo(function Equipment() {
   const { user } = useStateContext();
   const isCustodian = user?.role === 'custodian';
   const [custodianLabId, setCustodianLabId] = useState(null);
+
+  useEffect(() => {
+    if (isSmallScreen) setViewMode('grid');
+  }, [isSmallScreen]);
 
   const BASE_URL = backendBaseUrl;
 
@@ -554,6 +559,21 @@ export default memo(function Equipment() {
           {(() => {
             const all = searchData(filteredEquipment);
             const itemsToShow = rowsPerPage === -1 ? all : all.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+            if (loading) {
+              return <Grid item xs={12}><Box sx={{ display: 'grid', py: 7, placeItems: 'center' }}><CircularProgress /></Box></Grid>;
+            }
+            if (itemsToShow.length === 0) {
+              return (
+                <Grid item xs={12}>
+                  <Paper sx={{ p: { xs: 4, sm: 7 }, textAlign: 'center' }}>
+                    <EmptyEquipmentIcon color="disabled" sx={{ fontSize: 48, mb: 1.5 }} />
+                    <Typography variant="h6">No equipment found</Typography>
+                    <Typography color="text.secondary" sx={{ mt: 0.5 }}>Try changing the search filters or add the first equipment record.</Typography>
+                    {!isCustodian && <Button component={Link} to="new/" variant="outlined" sx={{ mt: 2 }}>Add equipment</Button>}
+                  </Paper>
+                </Grid>
+              );
+            }
             return itemsToShow.map(item => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={item.id}>
                 <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', boxShadow: 3 }}>

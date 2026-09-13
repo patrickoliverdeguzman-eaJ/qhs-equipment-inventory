@@ -43,6 +43,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import CancelIcon from '@mui/icons-material/Cancel';
 import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn';
+import qhsMark from '../assets/qhs-mark.svg';
 
 
 
@@ -350,50 +351,41 @@ export default function UserLayout() {
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       {/* ResponsiveAppBar */}
       <AppBar
         position="sticky"
         sx={{
-          backgroundColor: '#800000',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
-          transition: 'all 0.3s ease',
+          backgroundColor: '#4C1020',
+          color: 'common.white',
+          borderBottomColor: 'rgba(255,255,255,.12)',
         }}
       >
         <Container maxWidth="xl">
-          <Toolbar disableGutters sx={{ gap: 2, py: 1 }}>
+          <Toolbar disableGutters sx={{ gap: { xs: 0.5, md: 1.5 }, minHeight: { xs: 64, md: 72 } }}>
             <Box
               component="img"
-              src={assetUrl('/storage/logo/logo.png')}
-              alt="Logo"
+              src={qhsMark}
+              alt=""
               sx={{
                 display: { xs: "none", md: "flex" },
-                width: "48px",
-                height: "48px",
-                borderRadius: "50%",
-                objectFit: 'cover',
-                transition: 'transform 0.3s ease',
-                '&:hover': {
-                  transform: 'scale(1.05)',
-                },
-              }}
-              onError={(e) => {
-                e.target.style.display = 'none';
+                width: 42,
+                height: 42,
+                flexShrink: 0,
               }}
             />
 
             <Typography
               variant="h6"
               noWrap
-              component="a"
-              href="/"
+              component={Link}
+              to="/"
               sx={{
                 mr: 2,
                 display: { xs: 'none', md: 'flex' },
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                fontWeight: 700,
-                fontSize: '1.25rem',
-                letterSpacing: '0.5px',
+                fontWeight: 800,
+                fontSize: '1.05rem',
+                letterSpacing: '-0.01em',
                 color: 'white',
                 textDecoration: 'none',
                 transition: 'opacity 0.3s ease',
@@ -402,24 +394,18 @@ export default function UserLayout() {
                 },
               }}
             >
-              Quirino Highschool
+              QHS Inventory
             </Typography>
 
             {/* Mobile Menu */}
             <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
               <IconButton
                 size="large"
-                aria-label="account of current user"
+                aria-label="Open navigation"
                 aria-controls="menu-appbar"
                 aria-haspopup="true"
                 onClick={handleOpenNavMenu}
                 color="inherit"
-                sx={{
-                  transition: 'transform 0.2s ease',
-                  '&:hover': {
-                    transform: 'rotate(90deg)',
-                  },
-                }}
               >
                 <MenuIcon />
               </IconButton>
@@ -459,15 +445,14 @@ export default function UserLayout() {
             <Typography
               variant="h5"
               noWrap
-              component="a"
-              href="/"
+              component={Link}
+              to="/"
               sx={{
-                mr: 2,
+                mr: 0.5,
                 display: { xs: 'flex', md: 'none' },
                 flexGrow: 1,
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                fontWeight: 700,
-                fontSize: '1.25rem',
+                fontWeight: 800,
+                fontSize: '1.02rem',
                 color: 'white',
                 textDecoration: 'none',
                 transition: 'opacity 0.3s ease',
@@ -476,7 +461,7 @@ export default function UserLayout() {
                 },
               }}
             >
-              QHS
+              QHS Inventory
             </Typography>
 
             {/* Desktop Menu */}
@@ -520,7 +505,7 @@ export default function UserLayout() {
             </Box>
 
             {/* User Menu */}
-            <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center', gap: { xs: 0.25, sm: 0.75 } }}>
               {/* Requests/Notifications Icon */}
               <Tooltip title="Notifications" arrow>
                 <IconButton
@@ -565,7 +550,7 @@ export default function UserLayout() {
                   horizontal: 'right',
                 }}
               >
-                <Paper sx={{ width: 380, boxShadow: '0 5px 40px rgba(0,0,0,0.16)', borderRadius: '12px' }}>
+                <Paper sx={{ width: 'min(380px, calc(100vw - 24px))', overflow: 'hidden' }}>
                   {/* Header */}
                   <Box sx={{ p: 2, borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
                     <Typography variant="h6" fontWeight="700" sx={{ color: '#800000' }}>
@@ -1034,7 +1019,9 @@ export default function UserLayout() {
       </Drawer>
 
       {/* Outlet for nested routes */}
-      <Outlet />
-    </div>
+      <Box component="main" sx={{ minHeight: 'calc(100vh - 72px)' }}>
+        <Outlet />
+      </Box>
+    </Box>
   );
 }

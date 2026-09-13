@@ -1,7 +1,7 @@
 import React, { useEffect, useState, memo } from 'react';
 import {
   Box, Paper, Typography, Grid, Card, CardContent, CircularProgress, Alert,
-  LinearProgress, Table, TableHead, TableRow, TableCell, TableBody, Chip, useTheme
+  LinearProgress, Table, TableContainer, TableHead, TableRow, TableCell, TableBody, Chip, useTheme
 } from '@mui/material';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -280,7 +280,8 @@ export default memo(function CustodianDashboard() {
           Recent Borrowing Activities
         </Typography>
         {recentTransactions.length > 0 ? (
-          <Table size="small">
+          <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 620 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}>
                 {['Borrower', 'Equipment', 'Status', 'Borrow Date', 'Return Date'].map((head) => (
@@ -324,6 +325,7 @@ export default memo(function CustodianDashboard() {
               ))}
             </TableBody>
           </Table>
+          </TableContainer>
         ) : (
           <Typography color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
             No recent borrowing activities
@@ -337,7 +339,8 @@ export default memo(function CustodianDashboard() {
           Equipment Inventory Details
         </Typography>
         {equipmentStats.length > 0 ? (
-          <Table size="small">
+          <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 620 }}>
             <TableHead>
               <TableRow sx={{ bgcolor: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)' }}>
                 <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>Equipment Name</TableCell>
@@ -381,6 +384,7 @@ export default memo(function CustodianDashboard() {
               ))}
             </TableBody>
           </Table>
+          </TableContainer>
         ) : (
           <Typography color="text.secondary" sx={{ textAlign: 'center', py: 3 }}>
             No equipment available in this laboratory

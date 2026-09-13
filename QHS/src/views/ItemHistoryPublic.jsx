@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axiosClient from '../axiosClient';
-import { Box, Typography, Paper, Table, TableHead, TableRow, TableCell, TableBody, CircularProgress } from '@mui/material';
+import { Box, Typography, Paper, Table, TableContainer, TableHead, TableRow, TableCell, TableBody, CircularProgress } from '@mui/material';
 
 export default function ItemHistoryPublic(){
   const { unitID } = useParams();
@@ -43,7 +43,8 @@ export default function ItemHistoryPublic(){
         {history.length === 0 ? (
           <Typography>No history found for this unit.</Typography>
         ) : (
-          <Table>
+          <TableContainer sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 640 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Date</TableCell>
@@ -63,6 +64,7 @@ export default function ItemHistoryPublic(){
               ))}
             </TableBody>
           </Table>
+          </TableContainer>
         )}
       </Paper>
     </Box>

@@ -2,7 +2,7 @@ import React, { useEffect, useState, memo } from 'react';
 import axiosClient from '../../axiosClient';
 import { writePrintDocument } from '../../printDocument';
 import {
-  Box, Button, Paper, Typography, Grid, Table, TableHead, TableRow, TableCell, TableBody,
+  Box, Button, Paper, Typography, Grid, Table, TableContainer, TableHead, TableRow, TableCell, TableBody,
   CircularProgress, Alert, Card, CardContent, Tabs, Tab, TextField, useTheme, useMediaQuery, Chip
 } from '@mui/material';
 import {
@@ -404,7 +404,8 @@ export default memo(function TransactionReports() {
             {dailyTx.length === 0 ? (
               <Alert severity="info">No transactions on this date</Alert>
             ) : (
-              <Table size="small">
+              <TableContainer sx={{ overflowX: 'auto' }}>
+              <Table size="small" sx={{ minWidth: 980 }}>
                 <TableHead>
                   <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? '#424242' : '#f5f5f5' }}>
                     <TableCell><strong>ID</strong></TableCell>
@@ -438,6 +439,7 @@ export default memo(function TransactionReports() {
                   ))}
                 </TableBody>
               </Table>
+              </TableContainer>
             )}
           </Box>
         </Paper>
@@ -527,7 +529,8 @@ export default memo(function TransactionReports() {
           {getMonthlyStats().transactions.length === 0 ? (
             <Alert severity="info">No transactions in this month</Alert>
           ) : (
-            <Table size="small">
+            <TableContainer sx={{ overflowX: 'auto' }}>
+            <Table size="small" sx={{ minWidth: 980 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? '#424242' : '#f5f5f5' }}>
                   <TableCell><strong>ID</strong></TableCell>
@@ -561,6 +564,7 @@ export default memo(function TransactionReports() {
                 ))}
               </TableBody>
             </Table>
+            </TableContainer>
           )}
         </Paper>
       </Box>
@@ -675,7 +679,8 @@ export default memo(function TransactionReports() {
           {getAnnualStats().transactions.length === 0 ? (
             <Alert severity="info">No transactions in this year</Alert>
           ) : (
-            <Table size="small">
+            <TableContainer sx={{ overflowX: 'auto' }}>
+            <Table size="small" sx={{ minWidth: 980 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? '#424242' : '#f5f5f5' }}>
                   <TableCell><strong>ID</strong></TableCell>
@@ -709,6 +714,7 @@ export default memo(function TransactionReports() {
                 ))}
               </TableBody>
             </Table>
+            </TableContainer>
           )}
         </Paper>
       </Box>
@@ -716,12 +722,19 @@ export default memo(function TransactionReports() {
   };
 
   return (
-    <Mui.Paper sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Mui.Paper sx={{ p: { xs: 2, sm: 3 } }}>
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between',
+        alignItems: { xs: 'stretch', sm: 'center' },
+        gap: 2,
+        mb: 3,
+      }}>
         <Typography variant="h5" fontWeight="bold">
           Transaction Reports
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, '& > button': { flex: { xs: 1, sm: 'initial' } } }}>
           <Button
             variant="outlined"
             startIcon={<Download />}
@@ -755,7 +768,14 @@ export default memo(function TransactionReports() {
         </Box>
       ) : (
         <>
-          <Tabs value={tabValue} onChange={(e, val) => setTabValue(val)} sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+          <Tabs
+            value={tabValue}
+            onChange={(e, val) => setTabValue(val)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
+          >
             <Tab label="Daily Report" />
             <Tab label="Monthly Report" />
             <Tab label="Annual Report" />

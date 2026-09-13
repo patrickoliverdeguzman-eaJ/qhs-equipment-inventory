@@ -7,7 +7,7 @@ import axiosClient from "../../axiosClient";
 import {
   Box, Button, Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Select, MenuItem, FormControl, InputLabel, Chip, OutlinedInput,
-  Table, TableHead, TableRow, TableCell, TableBody, IconButton, Paper,
+  Table, TableHead, TableRow, TableCell, TableBody, TableContainer, IconButton, Paper,
   Typography, Grid, Alert, CircularProgress, Checkbox, Autocomplete,
   useTheme, useMediaQuery, List, ListItem, ListItemText, ListItemSecondaryAction,
   Tooltip, Stack
@@ -16,7 +16,7 @@ import {
   Edit, Add, Visibility, Save, Search as SearchIcon,
   Close, CheckCircle, Warning, Info, SwapHoriz, Pending,
   CheckCircleOutline, Cancel, HourglassEmpty, Autorenew, Block,
-  Delete
+  Delete, InboxOutlined
 } from "@mui/icons-material";
 import { format } from "date-fns";
 
@@ -535,7 +535,15 @@ export default memo(function Transactions() {
 
       {/* TABLE */}
       <Paper elevation={2}>
-        <Table size={isMobile ? "small" : "medium"}>
+        {!loading && filtered.length === 0 && (
+          <Box sx={{ display: { xs: 'grid', sm: 'none' }, px: 3, py: 6, placeItems: 'center', textAlign: 'center' }}>
+            <InboxOutlined color="disabled" sx={{ fontSize: 46, mb: 1.5 }} />
+            <Typography variant="h6">No transactions found</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>New borrowing requests will appear here.</Typography>
+          </Box>
+        )}
+        <TableContainer sx={{ display: !loading && filtered.length === 0 ? { xs: 'none', sm: 'block' } : 'block', maxWidth: '100%', border: 0, borderRadius: 0 }}>
+          <Table size={isMobile ? "small" : "medium"} sx={{ minWidth: isMobile ? 520 : 760 }}>
           <TableHead>
             <TableRow sx={{ bgcolor: "primary.main" }}>
               {["ID", "Borrower", !isMobile && "Lab", "Equipment", "Status", "Actions"]
@@ -558,7 +566,7 @@ export default memo(function Transactions() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} align="center">
+                <TableCell colSpan={6} align="center" sx={{ position: isMobile ? 'sticky' : 'static', left: 0 }}>
                   <CircularProgress />
                 </TableCell>
               </TableRow>
@@ -651,7 +659,7 @@ export default memo(function Transactions() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} align="center">
+                <TableCell colSpan={6} align="center" sx={{ position: isMobile ? 'sticky' : 'static', left: 0 }}>
                   <Typography variant="body2" color="text.secondary">
                     No transactions found
                   </Typography>
@@ -659,7 +667,8 @@ export default memo(function Transactions() {
               </TableRow>
             )}
           </TableBody>
-        </Table>
+          </Table>
+        </TableContainer>
 
         <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', gap: 2 }}>
           <Button disabled={page <= 1} onClick={() => fetchTransactions(page - 1)} variant="outlined">Previous</Button>

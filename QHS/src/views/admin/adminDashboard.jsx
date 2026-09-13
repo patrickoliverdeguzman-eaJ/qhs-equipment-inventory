@@ -515,18 +515,18 @@ export default function AdminDashboard() {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, bgcolor: "background.default" }}>
+    <Box>
       {/* Header */}
-      <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "flex-start", sm: "center" }, mb: 4, gap: 2 }}>
-        <Avatar src={user.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined} sx={{ bgcolor: "primary.main", width: { xs: 48, sm: 56 }, height: { xs: 48, sm: 56 }, fontSize: { xs: 20, sm: 24 } }}>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 1.75 }}>
+        <Avatar src={user?.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined} sx={{ bgcolor: "primary.main", width: 48, height: 48, fontSize: 19, fontWeight: 800 }}>
           {user?.name?.charAt(0).toUpperCase() || "A"}
         </Avatar>
         <Box>
-          <Typography variant={isMobile ? "h5" : "h4"} fontWeight="bold" color="text.primary" sx={{ wordBreak: "break-word" }}>
-            Welcome back, {user?.name || "Admin"}!
+          <Typography variant={isMobile ? "h5" : "h4"} color="text.primary" sx={{ wordBreak: "break-word" }}>
+            Welcome back, {user?.name || "Administrator"}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Here's your lab system overview
+            Here’s what’s happening across the inventory today.
           </Typography>
         </Box>
       </Box>
@@ -534,14 +534,14 @@ export default function AdminDashboard() {
       {/* Stats Cards */}
       <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: "success.main", color: "#fff", borderRadius: 3, boxShadow: 3, "&:hover": { transform: "translateY(-4px)" } }}>
+          <Card sx={{ height: '100%' }}>
             <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, p: { xs: 2, sm: 3 } }}>
-              <SwapHoriz sx={{ fontSize: { xs: 36, sm: 48 }, opacity: 0.9 }} />
+              <Box sx={{ display: 'grid', width: 46, height: 46, placeItems: 'center', borderRadius: 2.5, bgcolor: 'success.main', color: 'common.white', flexShrink: 0 }}><SwapHoriz /></Box>
               <Box>
-                {loadingTransactions ? <CircularProgress size={28} color="inherit" /> : (
+                {loadingTransactions ? <CircularProgress size={26} /> : (
                   <>
-                    <Typography variant={isMobile ? "h5" : "h4"} fontWeight="bold">{animatedTransactionsToday}</Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>Transactions Today</Typography>
+                    <Typography variant={isMobile ? "h5" : "h4"}>{animatedTransactionsToday}</Typography>
+                    <Typography variant="body2" color="text.secondary">Transactions today</Typography>
                   </>
                 )}
               </Box>
@@ -550,14 +550,14 @@ export default function AdminDashboard() {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: "info.main", color: "#fff", borderRadius: 3, boxShadow: 3, "&:hover": { transform: "translateY(-4px)" } }}>
+          <Card sx={{ height: '100%' }}>
             <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, p: { xs: 2, sm: 3 } }}>
-              <Science sx={{ fontSize: { xs: 36, sm: 48 }, opacity: 0.9 }} />
+              <Box sx={{ display: 'grid', width: 46, height: 46, placeItems: 'center', borderRadius: 2.5, bgcolor: 'info.main', color: 'common.white', flexShrink: 0 }}><Science /></Box>
               <Box>
-                {loadingLabs ? <CircularProgress size={28} color="inherit" /> : (
+                {loadingLabs ? <CircularProgress size={26} /> : (
                   <>
-                    <Typography variant={isMobile ? "h5" : "h4"} fontWeight="bold">{animatedLabsCount}</Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>Laboratories</Typography>
+                    <Typography variant={isMobile ? "h5" : "h4"}>{animatedLabsCount}</Typography>
+                    <Typography variant="body2" color="text.secondary">Laboratories</Typography>
                   </>
                 )}
               </Box>
@@ -566,14 +566,14 @@ export default function AdminDashboard() {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: "warning.main", color: "#fff", borderRadius: 3, boxShadow: 3, "&:hover": { transform: "translateY(-4px)" } }}>
+          <Card sx={{ height: '100%' }}>
             <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, p: { xs: 2, sm: 3 } }}>
-              <Build sx={{ fontSize: { xs: 36, sm: 48 }, opacity: 0.9 }} />
+              <Box sx={{ display: 'grid', width: 46, height: 46, placeItems: 'center', borderRadius: 2.5, bgcolor: 'warning.main', color: 'common.white', flexShrink: 0 }}><Build /></Box>
               <Box>
-                {loadingEquipment ? <CircularProgress size={28} color="inherit" /> : (
+                {loadingEquipment ? <CircularProgress size={26} /> : (
                   <>
-                    <Typography variant={isMobile ? "h5" : "h4"} fontWeight="bold">{animatedEquipmentCount}</Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>Total Units</Typography>
+                    <Typography variant={isMobile ? "h5" : "h4"}>{animatedEquipmentCount}</Typography>
+                    <Typography variant="body2" color="text.secondary">Total units</Typography>
                   </>
                 )}
               </Box>
@@ -582,14 +582,14 @@ export default function AdminDashboard() {
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: "secondary.main", color: "#fff", borderRadius: 3, boxShadow: 3, "&:hover": { transform: "translateY(-4px)" } }}>
+          <Card sx={{ height: '100%' }}>
             <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, p: { xs: 2, sm: 3 } }}>
-              <TrendingUp sx={{ fontSize: { xs: 36, sm: 48 }, opacity: 0.9 }} />
+              <Box sx={{ display: 'grid', width: 46, height: 46, placeItems: 'center', borderRadius: 2.5, bgcolor: 'secondary.main', color: 'common.white', flexShrink: 0 }}><TrendingUp /></Box>
               <Box>
-                {loadingEquipment ? <CircularProgress size={28} color="inherit" /> : (
+                {loadingEquipment ? <CircularProgress size={26} /> : (
                   <>
-                    <Typography variant={isMobile ? "h5" : "h4"} fontWeight="bold">{animatedAvailableCount}</Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>Available</Typography>
+                    <Typography variant={isMobile ? "h5" : "h4"}>{animatedAvailableCount}</Typography>
+                    <Typography variant="body2" color="text.secondary">Available units</Typography>
                   </>
                 )}
               </Box>

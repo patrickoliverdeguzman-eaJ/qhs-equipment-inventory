@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useStateContext } from '../Context/ContextProvider';
+import qhsMark from '../assets/qhs-mark.svg';
 
 export default function GuestLayout() {
   const { token, user, initializing } = useStateContext();
@@ -16,9 +17,9 @@ export default function GuestLayout() {
   return (
     <main className="auth-shell">
       <section className="auth-brand" aria-labelledby="auth-brand-title">
-        <div className="auth-brand-mark" aria-hidden="true">QHS</div>
+        <img className="auth-brand-mark" src={qhsMark} alt="" />
         <p className="auth-eyebrow">Quirino High School</p>
-        <h1 id="auth-brand-title">Equipment, ready when learning needs it.</h1>
+        <h1 id="auth-brand-title">Equipment ready when learning needs it.</h1>
         <p>One secure place for students and staff to request, track, and care for laboratory equipment.</p>
       </section>
       <section className="auth-content" aria-label="Account access">
