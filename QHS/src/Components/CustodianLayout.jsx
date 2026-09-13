@@ -65,10 +65,6 @@ export default function CustodianLayout() {
   }, [navigate, setToken, setUser]);
 
   useEffect(() => {
-    axiosClient.get('/user').then(({ data }) => setUser(data));
-  }, [setUser]);
-
-  useEffect(() => {
     if (!user?.id) return undefined;
     let active = true;
 

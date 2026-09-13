@@ -101,11 +101,6 @@ export default function UserLayout() {
         .catch(err => console.error('Error fetching requests:', err));
     };
 
-    axiosClient.get("/user")
-      .then(({ data }) => {
-        setUser(data);
-      });
-
     // Fetch laboratories for cart display
     axiosClient.get("/laboratories")
       .then(({ data }) => {

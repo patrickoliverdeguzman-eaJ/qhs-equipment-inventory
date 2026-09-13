@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import axiosClient from '../axiosClient';
 
 const readStoredUser = () => {
@@ -17,20 +17,20 @@ export const ContextProvider = ({ children }) => {
   const [token, setTokenState] = useState(() => localStorage.getItem('ACCESS_TOKEN'));
   const [initializing, setInitializing] = useState(Boolean(token));
 
-  const setUser = (nextUser) => {
+  const setUser = useCallback((nextUser) => {
     setUserState(nextUser);
     if (nextUser) localStorage.setItem('USER', JSON.stringify(nextUser));
     else localStorage.removeItem('USER');
-  };
+  }, []);
 
-  const setToken = (nextToken) => {
+  const setToken = useCallback((nextToken) => {
     setTokenState(nextToken);
     if (nextToken) localStorage.setItem('ACCESS_TOKEN', nextToken);
     else {
       localStorage.removeItem('ACCESS_TOKEN');
       setUser(null);
     }
-  };
+  }, [setUser]);
 
   useEffect(() => {
     const expire = () => {
@@ -40,7 +40,7 @@ export const ContextProvider = ({ children }) => {
     };
     window.addEventListener('qhs:auth-expired', expire);
     return () => window.removeEventListener('qhs:auth-expired', expire);
-  }, []);
+  }, [setUser]);
 
   useEffect(() => {
     if (!token) {
@@ -55,11 +55,11 @@ export const ContextProvider = ({ children }) => {
       .finally(() => active && setInitializing(false));
 
     return () => { active = false; };
-  }, [token]);
+  }, [setToken, setUser, token]);
 
   const value = useMemo(
     () => ({ user, token, initializing, setUser, setToken }),
-    [user, token, initializing],
+    [initializing, setToken, setUser, token, user],
   );
 
   return <StateContext.Provider value={value}>{children}</StateContext.Provider>;

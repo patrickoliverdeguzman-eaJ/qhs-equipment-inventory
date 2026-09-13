@@ -78,10 +78,6 @@ export default function DefaultLayout() {
   }, [navigate, setToken, setUser]);
 
   useEffect(() => {
-    axiosClient.get('/user').then(({ data }) => setUser(data));
-  }, [setUser]);
-
-  useEffect(() => {
     if (!window.Echo || user?.role !== 'admin') return undefined;
 
     const channel = window.Echo.private('transactions.admin')
