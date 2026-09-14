@@ -54,9 +54,10 @@ import {
   SwapHoriz,
 } from "@mui/icons-material";
 import { useStateContext } from "../../Context/ContextProvider";
-import axiosClient, { assetUrl } from "../../axiosClient";
+import axiosClient from "../../axiosClient";
 import moment from "moment";
 import { useNavigate } from "react-router-dom";
+import PageHeader from "../../Components/PageHeader";
 
 const STATUS_COLORS = {
   Available: "#4caf50",
@@ -521,20 +522,7 @@ export default function AdminDashboard() {
 
   return (
     <Box>
-      {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 1.75 }}>
-        <Avatar src={user?.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined} sx={{ bgcolor: "primary.main", width: 48, height: 48, fontSize: 19, fontWeight: 800 }}>
-          {user?.name?.charAt(0).toUpperCase() || "A"}
-        </Avatar>
-        <Box>
-          <Typography variant={isMobile ? "h5" : "h4"} color="text.primary" sx={{ wordBreak: "break-word" }}>
-            Welcome back, {user?.name || "Administrator"}
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Here’s what’s happening across the inventory today.
-          </Typography>
-        </Box>
-      </Box>
+      <PageHeader eyebrow="System overview" title={`Welcome back, ${user?.name || 'Administrator'}`} description="Monitor borrowing activity, stock health, users, and laboratory operations from one workspace." />
 
       {/* Stats Cards */}
       <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 4 }}>
@@ -660,7 +648,7 @@ export default function AdminDashboard() {
       </Paper>
 
       {/* User Summary */}
-      <Card elevation={3} sx={{ borderRadius: 3, mb: 4, bgcolor: theme.palette.mode === "dark" ? "grey.900" : "grey.50", border: `1px solid ${theme.palette.divider}` }}>
+      <Card variant="outlined" sx={{ mb: 4 }}>
         <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
           <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>User Summary</Typography>
           {loadingUsers ? (
@@ -688,7 +676,7 @@ export default function AdminDashboard() {
       <Grid container spacing={{ xs: 2, sm: 3 }}>
         {/* User Growth */}
         <Grid item xs={12} lg={7}>
-          <Card elevation={4} sx={{ borderRadius: 3, height: "100%" }}>
+          <Card variant="outlined" sx={{ height: "100%" }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2, flexWrap: "wrap", gap: 1 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -720,7 +708,7 @@ export default function AdminDashboard() {
 
         {/* Total Units per Laboratory */}
         <Grid item xs={12} lg={5}>
-          <Card elevation={4} sx={{ borderRadius: 3, height: "100%" }}>
+          <Card variant="outlined" sx={{ height: "100%" }}>
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Box sx={{ display: "flex", alignItems: "center", mb: 2, gap: 1 }}>
                 <Science sx={{ color: "info.main" }} />
@@ -746,7 +734,7 @@ export default function AdminDashboard() {
 
         {/* Equipment Status */}
         <Grid item xs={12} lg={6}>
-          <Card elevation={4} sx={{ borderRadius: 3 }}>
+      <Card variant="outlined">
             <CardContent sx={{ p: { xs: 2, sm: 3 }, textAlign: "center" }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 2, gap: 1 }}>
                 <Build sx={{ color: "warning.main" }} />
@@ -810,7 +798,7 @@ export default function AdminDashboard() {
 
         {/* Recent Borrowing Activities - NOW LIVE & REAL-TIME */}
         <Grid item xs={12} lg={6}>
-          <Card elevation={4} sx={{ borderRadius: 3 }}>
+      <Card variant="outlined">
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -919,7 +907,7 @@ export default function AdminDashboard() {
 
         {/* Recent System Logs (human-readable) */}
         <Grid item xs={12} lg={6}>
-          <Card elevation={4} sx={{ borderRadius: 3 }}>
+      <Card variant="outlined">
             <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

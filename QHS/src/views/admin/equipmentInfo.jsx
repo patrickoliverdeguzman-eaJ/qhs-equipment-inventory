@@ -27,15 +27,18 @@ import {
   DialogActions,
   IconButton,
   Tooltip,
-  Checkbox
+  Checkbox,
+  Chip,
+  Stack
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import HistoryIcon from '@mui/icons-material/History';
 import QrCodeIcon from '@mui/icons-material/QrCode';
 import PrintIcon from '@mui/icons-material/Print';
 import Select from "react-select";
+import PageHeader from "../../Components/PageHeader";
+import { EmptyState, SectionCard } from "../../Components/WorkspaceUI";
 
 export default function EquipmentInfo() {
   const { id } = useParams();
@@ -99,12 +102,11 @@ export default function EquipmentInfo() {
     
     if (['New', 'Good', 'Fair', 'Poor'].includes(condition)) {
       if (isBorrowed(item.isBorrowed)) {
-        return { text: "BORROWED", color: "#ff9800" }; // Orange
+        return { text: "Borrowed", color: "warning" };
       }
-      return { text: "AVAILABLE", color: "#4caf50" }; // Green
+      return { text: "Available", color: "success" };
     }
-    // For Damaged, Missing, Under Repair
-    return { text: condition, color: "#d32f2f" }; // Red
+    return { text: condition, color: condition === 'Under Repair' ? 'warning' : 'error' };
   };
 
   // ---------------------------------------------------------------------------
@@ -372,8 +374,8 @@ export default function EquipmentInfo() {
 
   if (loading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "80vh" }}>
-        <CircularProgress size={80} />
+      <Box sx={{ display: "grid", placeItems: "center", minHeight: "60vh" }}>
+        <CircularProgress />
       </Box>
     );
   }
@@ -383,16 +385,14 @@ export default function EquipmentInfo() {
 
   if (!equipment) {
     return (
-      <Container sx={{ textAlign: "center", mt: 10 }}>
-        <Typography variant="h4" color="error" gutterBottom>
-          Equipment Not Found
-        </Typography>
-        <Typography variant="body1" paragraph>
-          No equipment found with ID: <strong>{id}</strong>
-        </Typography>
-        <Button component={Link} to={equipmentPath} variant="contained" sx={{ bgcolor: "maroon" }}>
-          Back to Equipment List
-        </Button>
+      <Container maxWidth="md" sx={{ py: 6 }}>
+        <SectionCard>
+          <EmptyState
+            title="Equipment not found"
+            description={`No equipment record was found for ID ${id}.`}
+            action={<Button component={Link} to={equipmentPath} variant="contained">Back to equipment</Button>}
+          />
+        </SectionCard>
       </Container>
     );
   }
@@ -402,79 +402,52 @@ export default function EquipmentInfo() {
   // ---------------------------------------------------------------------------
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }}>
-      
-      {/* Back Button */}
-      <Button
-        component={Link}
-        to={equipmentPath}
-        startIcon={<ArrowBackIcon />}
-        variant="outlined"
-        sx={{ mb: 3, color: "maroon", borderColor: "maroon" }}
-      >
-        Back to Equipment List
-      </Button>
+    <Box sx={{ maxWidth: 1240, mx: 'auto' }}>
+      <PageHeader
+        backTo={equipmentPath}
+        eyebrow="Equipment record"
+        title={equipment.name}
+        description="Review availability, manage categories, and maintain each individually tracked unit."
+        actions={<Button variant="outlined" startIcon={<EditIcon />} onClick={() => navigate(`${equipmentPath}/${equipment.id}`)}>Edit equipment</Button>}
+      />
 
       {/* Main Info Card */}
-      <Card elevation={8} sx={{ mb: 4 }}>
+      <Card variant="outlined" sx={{ mb: 3 }}>
         <CardContent>
-          <Grid container spacing={4}>
+          <Grid container spacing={{ xs: 2.5, md: 4 }}>
             {/* Left Side: Image */}
             <Grid item xs={12} md={4}>
               <CardMedia
                 component="img"
                 image={getImageSrc(equipment.image)}
                 alt={equipment.name}
-                sx={{ borderRadius: 3, height: 340, objectFit: "cover" }}
+                sx={{ borderRadius: 2.5, height: { xs: 240, md: 320 }, objectFit: "cover", bgcolor: 'action.hover' }}
               />
             </Grid>
             
             {/* Right Side: Details */}
             <Grid item xs={12} md={8}>
-              <Typography variant="h3" sx={{ fontWeight: "bold", color: "maroon", mb: 2 }}>
-                {equipment.name.toUpperCase()}
-              </Typography>
-
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                <strong>Laboratory:</strong> {getLabName(equipment.laboratory_id)}
-              </Typography>
+              <Typography variant="overline" color="text.secondary" fontWeight={800}>Laboratory</Typography>
+              <Typography variant="h5">{getLabName(equipment.laboratory_id)}</Typography>
 
               {/* Status Dashboard Box */}
-              <Box sx={{ mt: 3, p: 3, bgcolor: "#f9f9f9", borderRadius: 2, border: "1px solid #ddd" }}>
-                <Typography variant="h5" fontWeight="bold" gutterBottom>
-                  Availability
-                </Typography>
-                <Typography
-                  variant="h2"
-                  sx={{
-                    fontWeight: "bold",
-                    color: available === 0 ? "#c62828" :
-                           available <= 2 ? "#ff9800" : "#2e7d32"
-                  }}
-                >
-                  {available} / {total}
-                </Typography>
-                {borrowed > 0 && (
-                  <Typography color="orange" sx={{ mt: 1 }}>
-                    ↓ {borrowed} borrowed
-                  </Typography>
-                )}
-                {available === total && total > 0 && (
-                  <Typography color="success.main" sx={{ mt: 1 }}>
-                    All units available
-                  </Typography>
-                )}
+              <Box sx={{ mt: 2.5, p: 2.5, bgcolor: 'action.hover', borderRadius: 2.5 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-end" spacing={2}>
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" fontWeight={800}>Units available</Typography>
+                    <Typography variant="h3" color={available === 0 ? 'error.main' : available <= 2 ? 'warning.main' : 'success.main'}>{available}<Typography component="span" variant="h5" color="text.secondary"> / {total}</Typography></Typography>
+                  </Box>
+                  <Chip label={borrowed > 0 ? `${borrowed} borrowed` : total > 0 ? 'All units ready' : 'No units'} color={borrowed > 0 ? 'warning' : total > 0 ? 'success' : 'default'} />
+                </Stack>
               </Box>
 
-              <Typography variant="body1" sx={{ mt: 3, lineHeight: 1.7 }}>
-                <strong>Description:</strong> {equipment.description || "No description"}
+              <Typography variant="body1" color="text.secondary" sx={{ mt: 2.5, lineHeight: 1.7 }}>
+                {equipment.description || "No description has been added."}
               </Typography>
 
               {/* Categories Section */}
-              <Box sx={{ mt: 4, display: "flex", alignItems: "center", gap: 2 }}>
-                <Typography variant="h6" color="text.secondary">
-                  <strong>Categories:</strong>
-                </Typography>
+              <Box sx={{ mt: 2.5, display: "flex", alignItems: "center", gap: 1.5 }}>
+                <Typography variant="body2" fontWeight={750}>Categories</Typography>
                 <Box sx={{ flexGrow: 1 }}>
                   <Select
                     isMulti
@@ -491,12 +464,12 @@ export default function EquipmentInfo() {
                       }),
                       multiValue: base => ({ 
                         ...base, 
-                        backgroundColor: "#ffebee",
-                        borderRadius: "16px"
+                        backgroundColor: "#F7EBEF",
+                        borderRadius: "8px"
                       }),
                       multiValueLabel: base => ({ 
                         ...base, 
-                        color: "#c62828",
+                        color: "#711A34",
                         fontWeight: "bold"
                       })
                     }}
@@ -505,7 +478,7 @@ export default function EquipmentInfo() {
                 <IconButton 
                   color="primary" 
                   onClick={() => setOpenModal(true)}
-                  size="large"
+                  size="small"
                 >
                   <EditIcon fontSize="small" />
                 </IconButton>
@@ -516,16 +489,16 @@ export default function EquipmentInfo() {
       </Card>
 
       {/* Units Section Header */}
-      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-          Equipment Units
-        </Typography>
+      <Box sx={{ mb: 1.75, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1.5 }}>
+        <Box>
+          <Typography variant="h6">Tracked units</Typography>
+          <Typography variant="body2" color="text.secondary">Select units to print inventory labels.</Typography>
+        </Box>
         
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
-              sx={{ bgcolor: "maroon", "&:hover": { bgcolor: "darkred" } }}
               onClick={() => navigate(`${equipmentPath}/info/${id}/add-item`)}
             >
               Add New Unit
@@ -538,10 +511,6 @@ export default function EquipmentInfo() {
                 color="secondary" 
                 startIcon={<PrintIcon />}
                 onClick={handleBulkPrint}
-                sx={{ 
-                    backgroundColor: 'maroon', 
-                    '&:hover': { backgroundColor: 'darkred' } 
-                }}
               >
                 Print {selectedItems.size} QR Label{selectedItems.size !== 1 ? 's' : ''}
               </Button>
@@ -550,17 +519,16 @@ export default function EquipmentInfo() {
       </Box>
 
       {/* Units Table */}
-      <Paper elevation={6}>
+      <Paper variant="outlined">
         <TableContainer sx={{ maxHeight: "60vh" }}>
           <Table stickyHeader>
             <TableHead>
-              <TableRow sx={{ "& th": { bgcolor: "maroon", color: "white", fontWeight: "bold" } }}>
+              <TableRow>
                 <TableCell padding="checkbox">
                   <Checkbox
                     checked={selectedItems.size === items.length && items.length > 0}
                     indeterminate={selectedItems.size > 0 && selectedItems.size < items.length}
                     onChange={handleSelectAll}
-                    sx={{ color: 'white', '&.Mui-checked': { color: 'white' } }}
                   />
                 </TableCell>
                 <TableCell>Unit ID</TableCell>
@@ -596,45 +564,11 @@ export default function EquipmentInfo() {
                       </TableCell>
                       
                       <TableCell>
-                        <Box
-                          sx={{
-                            px: 2.5,
-                            py: 0.8,
-                            borderRadius: 2,
-                            fontWeight: "bold",
-                            display: "inline-block",
-                            bgcolor:
-                              ['New', 'Good'].includes(item.condition) ? "#e8f5e8" :
-                              item.condition === "Fair" ? "#e3f2fd" :
-                              item.condition === "Poor" ? "#fff3e0" :
-                              ['Damaged', 'Missing'].includes(item.condition) ? "#ffebee" :
-                              item.condition === "Under Repair" ? "#fff3e0" : "#f5f5f5",
-                            color:
-                              ['Damaged', 'Missing'].includes(item.condition) ? "#c62828" :
-                              item.condition === "Under Repair" ? "#ef6c00" :
-                              item.condition === "Poor" ? "#ef6c00" : "#2e7d32",
-                          }}
-                        >
-                          {item.condition || 'Unknown'}
-                        </Box>
+                        <Chip label={item.condition || 'Unknown'} size="small" color={['Damaged', 'Missing'].includes(item.condition) ? 'error' : ['Under Repair', 'Poor'].includes(item.condition) ? 'warning' : item.condition === 'Fair' ? 'info' : 'success'} />
                       </TableCell>
                       
                       <TableCell>
-                        <Box
-                          sx={{
-                            bgcolor: s.color,
-                            color: "white",
-                            px: 3,
-                            py: 1,
-                            borderRadius: 3,
-                            fontWeight: "bold",
-                            textAlign: "center",
-                            minWidth: 100,
-                            display: 'inline-block'
-                          }}
-                        >
-                          {s.text}
-                        </Box>
+                        <Chip label={s.text} size="small" color={s.color} />
                       </TableCell>
                       
                       <TableCell>
@@ -743,7 +677,6 @@ export default function EquipmentInfo() {
           <Button 
             onClick={saveCategories} 
             variant="contained" 
-            sx={{ bgcolor: "maroon", "&:hover": { bgcolor: "darkred" } }}
           >
             Save Changes
           </Button>
@@ -752,7 +685,7 @@ export default function EquipmentInfo() {
 
       {/* 2. History Dialog */}
       <Dialog open={historyOpen} onClose={() => setHistoryOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ bgcolor: 'maroon', color: 'white' }}>
+        <DialogTitle>
             Borrower History: {historyItem ? historyItem.unit_id : ''}
         </DialogTitle>
         <DialogContent dividers>
@@ -881,6 +814,6 @@ export default function EquipmentInfo() {
         </DialogActions>
       </Dialog>
 
-    </Container>
+    </Box>
   );
 }

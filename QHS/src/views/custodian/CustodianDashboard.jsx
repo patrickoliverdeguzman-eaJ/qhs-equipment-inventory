@@ -1,12 +1,18 @@
 import React, { useEffect, useState, memo } from 'react';
 import {
-  Box, Paper, Typography, Grid, Card, CardContent, CircularProgress, Alert,
+  Box, Paper, Typography, Grid, CircularProgress, Alert,
   LinearProgress, Table, TableContainer, TableHead, TableRow, TableCell, TableBody, Chip, useTheme
 } from '@mui/material';
 import { format } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import axiosClient from '../../axiosClient';
 import { useStateContext } from '../../Context/ContextProvider';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
+import PageHeader from '../../Components/PageHeader';
+import { MetricCard } from '../../Components/WorkspaceUI';
 
 export default memo(function CustodianDashboard() {
   const { user } = useStateContext();
@@ -148,44 +154,19 @@ export default memo(function CustodianDashboard() {
   }));
 
   return (
-    <Box sx={{ p: 1 }}>
-      {/* Laboratory Header */}
-      <Paper sx={{ 
-        p: 3, 
-        mb: 3, 
-        bgcolor: 'background.paper', 
-        border: `1px solid ${theme.palette.divider}`,
-        borderRadius: 2
-      }}>
-        <Typography variant="h5" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
-          {laboratoryData.name}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {laboratoryData.description}
-        </Typography>
-      </Paper>
+    <Box>
+      <PageHeader eyebrow="Laboratory workspace" title={laboratoryData.name} description={laboratoryData.description || 'Monitor equipment, utilization, and recent borrowing activity for your assigned room.'} />
 
       {/* Inventory Stats Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {[
-          { label: 'Total Items', val: inventoryStats.total, color: theme.palette.primary.main },
-          { label: 'Available', val: inventoryStats.available, color: theme.palette.success.main },
-          { label: 'Borrowed', val: inventoryStats.borrowed, color: theme.palette.warning.main },
-          { label: 'Unavailable', val: inventoryStats.unavailable, color: theme.palette.error.main },
+          { label: 'Total units', val: inventoryStats.total, tone: 'primary', icon: <Inventory2OutlinedIcon /> },
+          { label: 'Available now', val: inventoryStats.available, tone: 'success', icon: <CheckCircleOutlineIcon /> },
+          { label: 'Currently borrowed', val: inventoryStats.borrowed, tone: 'warning', icon: <LocalShippingOutlinedIcon /> },
+          { label: 'Needs attention', val: inventoryStats.unavailable, tone: 'error', icon: <ReportProblemOutlinedIcon /> },
         ].map((stat, i) => (
           <Grid item xs={12} sm={6} md={3} key={i}>
-            <Card sx={{ 
-              bgcolor: 'background.paper', 
-              borderLeft: `4px solid ${stat.color}`,
-              boxShadow: isDarkMode ? 4 : 1 
-            }}>
-              <CardContent>
-                <Typography color="text.secondary" variant="subtitle2" gutterBottom>{stat.label}</Typography>
-                <Typography variant="h4" sx={{ color: stat.color, fontWeight: 'bold' }}>
-                  {stat.val}
-                </Typography>
-              </CardContent>
-            </Card>
+            <MetricCard label={stat.label} value={stat.val} tone={stat.tone} icon={stat.icon} />
           </Grid>
         ))}
       </Grid>
@@ -194,7 +175,7 @@ export default memo(function CustodianDashboard() {
       <Grid container spacing={3} sx={{ mb: 3 }}>
         {/* Inventory Distribution (Pie Chart) */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2 }}>
+          <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: 'text.primary' }}>
               Inventory Distribution
             </Typography>
@@ -233,7 +214,7 @@ export default memo(function CustodianDashboard() {
 
         {/* Utilization Rate (Bar Chart) */}
         <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2 }}>
+          <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: 'text.primary' }}>
               Equipment Utilization Rate
             </Typography>
@@ -275,7 +256,7 @@ export default memo(function CustodianDashboard() {
       </Grid>
 
       {/* Recent Borrowing Activities Table */}
-      <Paper sx={{ p: 2, mb: 3, bgcolor: 'background.paper', borderRadius: 2 }}>
+      <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: 'text.primary' }}>
           Recent Borrowing Activities
         </Typography>
@@ -334,7 +315,7 @@ export default memo(function CustodianDashboard() {
       </Paper>
 
       {/* Equipment Inventory Details Table */}
-      <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2 }}>
+      <Paper variant="outlined" sx={{ p: 2 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: 'text.primary' }}>
           Equipment Inventory Details
         </Typography>

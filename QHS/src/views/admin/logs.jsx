@@ -2,6 +2,20 @@ import React, { useEffect, useState } from 'react';
 import axiosClient from '../../axiosClient';
 import { writePrintDocument } from '../../printDocument';
 import * as Mui from '../../assets/muiImports';
+import Grid from '@mui/material/Grid';
+import PageHeader from '../../Components/PageHeader';
+import { EmptyState, SectionCard } from '../../Components/WorkspaceUI';
+
+function readMeta(log) {
+  if (log.meta) return log.meta;
+  if (!log.meta_summary) return null;
+
+  try {
+    return JSON.parse(log.meta_summary);
+  } catch {
+    return log.meta_summary;
+  }
+}
 
 export default function Logs() {
   const [logs, setLogs] = useState([]);
@@ -42,7 +56,7 @@ export default function Logs() {
     if (!win) return;
 
     const getMetaDisplay = (l) => {
-      const meta = l.meta || (l.meta_summary ? JSON.parse(l.meta_summary) : null);
+      const meta = readMeta(l);
       if (!meta) return '';
       if (meta.transaction_borrower || meta.transaction_id) {
         const tid = meta.transaction_id || '';
@@ -143,35 +157,38 @@ export default function Logs() {
   };
 
   return (
-    <Mui.Paper sx={{ p: 2 }}>
-      <Mui.Typography variant="h6">Action Logs</Mui.Typography>
+    <Mui.Box>
+      <PageHeader
+        eyebrow="Audit trail"
+        title="Activity logs"
+        description="Review important actions performed by staff and the system."
+        actions={<Mui.Button variant="outlined" onClick={handlePrint} disabled={logs.length === 0}>Print current page</Mui.Button>}
+      />
 
-      <Mui.Box sx={{ display: 'flex', gap: 1, alignItems: 'center', my: 2 }}>
-        <Mui.TextField
-          label="From"
-          type="datetime-local"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          size="small"
-        />
-        <Mui.TextField
-          label="To"
-          type="datetime-local"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          size="small"
-        />
-        <Mui.Button variant="contained" onClick={() => fetchLogs(1)}>Apply</Mui.Button>
-        <Mui.Button variant="outlined" onClick={() => { setDateFrom(''); setDateTo(''); }}>Clear</Mui.Button>
-        <Mui.Button variant="outlined" onClick={handlePrint}>Print</Mui.Button>
-      </Mui.Box>
+      <SectionCard sx={{ mb: 2.5 }}>
+        <Grid container spacing={2} alignItems="center" sx={{ p: 2 }}>
+          <Grid item xs={12} sm={6} md={4}>
+            <Mui.TextField fullWidth label="From" type="datetime-local" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} InputLabelProps={{ shrink: true }} />
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Mui.TextField fullWidth label="To" type="datetime-local" value={dateTo} onChange={(e) => setDateTo(e.target.value)} InputLabelProps={{ shrink: true }} />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Mui.Box sx={{ display: 'flex', gap: 1, justifyContent: { md: 'flex-end' } }}>
+              <Mui.Button variant="outlined" color="inherit" onClick={() => { setDateFrom(''); setDateTo(''); }}>Clear</Mui.Button>
+              <Mui.Button variant="contained" onClick={() => fetchLogs(1)}>Apply dates</Mui.Button>
+            </Mui.Box>
+          </Grid>
+        </Grid>
+      </SectionCard>
 
+      <SectionCard>
       {loading ? (
-        <Mui.CircularProgress />
+        <Mui.Box sx={{ display: 'grid', minHeight: 280, placeItems: 'center' }}><Mui.CircularProgress /></Mui.Box>
+      ) : logs.length === 0 ? (
+        <EmptyState title="No activity found" description="Try a wider date range or return later after staff actions have been recorded." />
       ) : (
-        <Mui.TableContainer>
+        <Mui.TableContainer sx={{ border: 0, borderRadius: 0 }}>
           <Mui.Table>
             <Mui.TableHead>
               <Mui.TableRow>
@@ -193,7 +210,7 @@ export default function Logs() {
                   <Mui.TableCell>
                     {
                       (() => {
-                        const meta = l.meta || (l.meta_summary ? JSON.parse(l.meta_summary) : null);
+                        const meta = readMeta(l);
                         if (!meta) return '';
                         if (meta.transaction_borrower || meta.transaction_id) {
                           const tid = meta.transaction_id || '';
@@ -218,6 +235,12 @@ export default function Logs() {
           </Mui.Table>
         </Mui.TableContainer>
       )}
-    </Mui.Paper>
+      </SectionCard>
+      <Mui.Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1, mt: 2 }}>
+        <Mui.Button variant="outlined" color="inherit" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</Mui.Button>
+        <Mui.Typography variant="body2" color="text.secondary">Page {page}</Mui.Typography>
+        <Mui.Button variant="outlined" color="inherit" disabled={logs.length < 25} onClick={() => setPage((current) => current + 1)}>Next</Mui.Button>
+      </Mui.Box>
+    </Mui.Box>
   );
 }

@@ -3,7 +3,6 @@ import * as React from "react";
 import axiosClient, { assetUrl } from "../../axiosClient";
 import moment from "moment";
 // UI
-import { styled } from "@mui/material/styles";
 import TableCell from '@mui/material/TableCell';
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -33,7 +32,9 @@ import {
   FormLabel, 
   Avatar, 
   Typography,
-  Stack
+  Stack,
+  Chip,
+  CircularProgress
 } from "@mui/material";
 import { getInitials } from "../../utils";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
@@ -234,15 +235,6 @@ export default function Users() {
     );
   };
 
-  const getRandomColor = () => {
-    const letters = '0123456789ABCDEF';
-    let color = '#';
-    for (let i = 0; i < 6; i++) {
-      color += letters[Math.floor(Math.random() * 8)];
-    }
-    return color;
-  };
-
   const sortedUsers = React.useMemo(() => {
     let sortableUsers = [...filteredUsers];
     if (sortConfig.key !== null) {
@@ -270,6 +262,7 @@ export default function Users() {
   // Calculate active/inactive counts
   const activeCount = filteredUsers.filter(u => u.isActive).length;
   const inactiveCount = filteredUsers.filter(u => !u.isActive).length;
+  const pagedUsers = sortedUsers.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
 
   return (
     <Box>
@@ -340,10 +333,13 @@ export default function Users() {
         </Box>
       </Box>
 
-      {/* Table header */}
-      <TableContainer component={Paper} elevation={3}>
+      <TableContainer
+        component={Paper}
+        variant="outlined"
+        sx={{ display: { xs: 'none', md: 'block' }, maxHeight: 'calc(100vh - 300px)', overflow: 'auto' }}
+      >
         <Table sx={{ tableLayout: 'auto', minWidth: { xs: 600, sm: 800 } }}>
-          <TableHead>
+          <TableHead sx={{ position: 'sticky', top: 0, zIndex: 1 }}>
             <TableRow>
               <TableCell sx={{ minWidth: 50, p: { xs: 0.5, sm: 1 } }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -422,36 +418,17 @@ export default function Users() {
               <TableCell sx={{ minWidth: 120, p: { xs: 0.5, sm: 1 } }}>ACTIONS</TableCell>
             </TableRow>
           </TableHead>
-        </Table>
-      </TableContainer>
-
-      {/* Table body */}
-      <TableContainer
-        component={Paper}
-        elevation={3}
-        sx={{
-          maxHeight: 'calc(91vh - 200px)',
-          overflow: 'auto',
-          '&::-webkit-scrollbar': { width: '8px', height: '8px' },
-          '&::-webkit-scrollbar-track': { background: '#f1f1f1', borderRadius: '4px' },
-          '&::-webkit-scrollbar-thumb': { background: 'maroon', borderRadius: '4px', '&:hover': { background: '#600000' } },
-          '&::-webkit-scrollbar-button': { display: 'none !important' },
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'maroon #f1f1f1',
-        }}
-      >
-        <Table sx={{ tableLayout: 'auto', minWidth: { xs: 600, sm: 800 } }}>
           {loading && (
             <TableBody>
               <TableRow>
-                <TableCell colSpan={9} align="center">Fetching Data ...</TableCell>
+                <TableCell colSpan={9} align="center" sx={{ py: 8 }}><CircularProgress size={28} /></TableCell>
               </TableRow>
             </TableBody>
           )}
           {!loading && (
             <TableBody>
-              {sortedUsers.slice(page * rowsPerPage, (page + 1) * rowsPerPage).map((u) => (
-                <TableRow key={u.id}>
+              {pagedUsers.map((u) => (
+                <TableRow key={u.id} hover>
                   <TableCell sx={{ p: { xs: 0.5, sm: 1 } }}>{u.id}</TableCell>
                   <TableCell sx={{ p: { xs: 0.5, sm: 1 } }}>
                     <Avatar
@@ -461,7 +438,7 @@ export default function Users() {
                         height: { xs: 36, sm: 44 },
                         fontSize: { xs: 12, sm: 14 },
                         m: 'auto',
-                        backgroundColor: u.avatar ? 'transparent' : getRandomColor(),
+                        backgroundColor: u.avatar ? 'transparent' : 'primary.main',
                         color: u.avatar ? 'inherit' : 'white'
                       }}
                     >
@@ -478,25 +455,22 @@ export default function Users() {
                     {moment(u.updated_at).format("MM/DD/yyyy HH:mm:ss")}
                   </TableCell>
                   <TableCell sx={{ p: { xs: 0.5, sm: 1 } }}>
-                    {u.isActive ? (
-                      <span style={{ color: 'green', fontWeight: 'bold' }}>Active</span>
-                    ) : (
-                      <span style={{ color: 'red', fontWeight: 'bold' }}>Inactive</span>
-                    )}
+                    <Chip label={u.isActive ? 'Active' : 'Inactive'} color={u.isActive ? 'success' : 'default'} size="small" />
                   </TableCell>
                   <TableCell sx={{ p: { xs: 0.5, sm: 1 } }}>
                     <Box sx={{ display: 'flex', gap: { xs: 0.2, sm: 0.5 } }}>
-                      <IconButton color="primary" size="small" onClick={() => handleOpenUserModal(u)}>
+                      <IconButton aria-label={`Edit ${u.name}`} color="primary" size="small" onClick={() => handleOpenUserModal(u)}>
                         <EditIcon fontSize="small" />
                       </IconButton>
                       <IconButton
                         color={u.isActive ? "success" : "error"}
+                        aria-label={`${u.isActive ? 'Deactivate' : 'Activate'} ${u.name}`}
                         size="small"
                         onClick={() => toggleActiveStatus(u)}
                       >
                         <ArchiveIcon fontSize="small" />
                       </IconButton>
-                      <IconButton color="error" size="small" onClick={() => handleOpenDeleteDialog(u)}>
+                      <IconButton aria-label={`Delete ${u.name}`} color="error" size="small" onClick={() => handleOpenDeleteDialog(u)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Box>
@@ -508,6 +482,46 @@ export default function Users() {
         </Table>
       </TableContainer>
 
+      <Stack spacing={1.25} sx={{ display: { xs: 'flex', md: 'none' } }}>
+        {loading ? (
+          <Paper variant="outlined" sx={{ display: 'grid', minHeight: 180, placeItems: 'center' }}><CircularProgress size={28} /></Paper>
+        ) : pagedUsers.length === 0 ? (
+          <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
+            <Typography variant="h6">No users found</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Try a different search term.</Typography>
+          </Paper>
+        ) : pagedUsers.map((u) => (
+          <Paper key={u.id} variant="outlined" sx={{ p: 2, borderRadius: 2.5 }}>
+            <Stack direction="row" spacing={1.5} alignItems="flex-start">
+              <Avatar
+                src={u.avatar ? assetUrl(`/storage/${u.avatar}`) : undefined}
+                sx={{ width: 46, height: 46, bgcolor: u.avatar ? 'transparent' : 'primary.main', fontWeight: 800 }}
+              >
+                {!u.avatar && getInitials(u.name)}
+              </Avatar>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography fontWeight={800} noWrap>{u.name}</Typography>
+                    <Typography variant="body2" color="text.secondary" noWrap>{u.email}</Typography>
+                  </Box>
+                  <Chip label={u.isActive ? 'Active' : 'Inactive'} color={u.isActive ? 'success' : 'default'} size="small" />
+                </Stack>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1.5 }}>
+                  <Chip label={u.role} size="small" variant="outlined" sx={{ textTransform: 'capitalize' }} />
+                  <Typography variant="caption" color="text.secondary">Joined {moment(u.created_at).format('MMM D, YYYY')}</Typography>
+                </Stack>
+              </Box>
+            </Stack>
+            <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1.25, pt: 1.25, borderTop: 1, borderColor: 'divider' }}>
+              <IconButton aria-label={`Edit ${u.name}`} color="primary" size="small" onClick={() => handleOpenUserModal(u)}><EditIcon fontSize="small" /></IconButton>
+              <IconButton aria-label={`${u.isActive ? 'Deactivate' : 'Activate'} ${u.name}`} color={u.isActive ? 'success' : 'error'} size="small" onClick={() => toggleActiveStatus(u)}><ArchiveIcon fontSize="small" /></IconButton>
+              <IconButton aria-label={`Delete ${u.name}`} color="error" size="small" onClick={() => handleOpenDeleteDialog(u)}><DeleteIcon fontSize="small" /></IconButton>
+            </Stack>
+          </Paper>
+        ))}
+      </Stack>
+
       <TablePagination
         component="div"
         count={filteredUsers.length}
@@ -515,18 +529,18 @@ export default function Users() {
         onPageChange={handleChangePage}
         rowsPerPage={rowsPerPage}
         onRowsPerPageChange={handleChangeRowsPerPage}
-        rowsPerPageOptions={[10, 20, 50, { label: 'All', value: filteredUsers.length }]}
+        rowsPerPageOptions={[10, 20, 50, ...(filteredUsers.length ? [{ label: 'All', value: filteredUsers.length }] : [])]}
       />
 
       {/* Delete Dialog */}
       <Dialog open={openDeleteDialog} onClose={handleCloseDeleteDialog}>
-        <DialogTitle color="error">USER DELETION</DialogTitle>
+        <DialogTitle color="error.main">Delete user?</DialogTitle>
         <DialogContent>
-          <DialogContentText>Are you sure you want to delete this user?</DialogContentText>
+          <DialogContentText>This permanently removes the selected user account. This action cannot be undone.</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDeleteDialog}>No</Button>
-          <Button onClick={() => onDeleteClick(selectedUser)} autoFocus>Yes</Button>
+          <Button onClick={handleCloseDeleteDialog} color="inherit">Cancel</Button>
+          <Button onClick={() => onDeleteClick(selectedUser)} color="error" variant="contained" autoFocus>Delete user</Button>
         </DialogActions>
       </Dialog>
 
@@ -535,10 +549,10 @@ export default function Users() {
         <DialogTitle>{userForm.id ? `Update User: ${userForm.name}` : "Add New User"}</DialogTitle>
         <DialogContent>
           <form onSubmit={handleUserFormSubmit}>
-            <div style={{ position: "relative", display: "inline-block" }}>
+            <Box sx={{ position: 'relative', display: 'inline-block', mt: 1 }}>
               <IconButton component="label" sx={{ p: 0, "&:hover": { opacity: 0.8 } }}>
                 <Avatar
-                  src={avatarPreview || '/path/to/default-avatar.png'}
+                  src={avatarPreview || undefined}
                   sx={{ width: { xs: 80, sm: 100 }, height: { xs: 80, sm: 100 }, mb: 2 }}
                 />
                 <CameraAltIcon sx={{
@@ -548,7 +562,7 @@ export default function Users() {
                 }} />
                 <input type="file" onChange={handleAvatarChange} accept="image/*" style={{ display: "none" }} />
               </IconButton>
-            </div>
+            </Box>
             <TextField autoFocus margin="dense" name="name" label="Name" fullWidth value={userForm.name} onChange={handleUserFormChange} />
             <TextField margin="dense" name="email" label="Email" type="email" fullWidth value={userForm.email} onChange={handleUserFormChange} disabled={!!userForm.id} />
             <FormControl component="fieldset" sx={{ mt: 2 }}>
@@ -569,7 +583,7 @@ export default function Users() {
             )}
             <DialogActions>
               <Button onClick={handleCloseUserModal}>Cancel</Button>
-              <Button type="submit">{userForm.id ? "Update" : "Save"}</Button>
+              <Button type="submit" variant="contained">{userForm.id ? "Update user" : "Create user"}</Button>
             </DialogActions>
           </form>
         </DialogContent>

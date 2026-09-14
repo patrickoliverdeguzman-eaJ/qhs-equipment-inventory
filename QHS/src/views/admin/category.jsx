@@ -176,7 +176,7 @@ export default function Category() {
       />
 
       {/* Table with sticky header */}
-      <TableContainer component={Paper} elevation={3} 
+      <TableContainer component={Paper} variant="outlined"
       sx={{ 
         maxHeight: 'calc(93vh - 200px)',
        }}>

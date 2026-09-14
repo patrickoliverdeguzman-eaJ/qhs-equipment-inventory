@@ -26,6 +26,8 @@ import {
   Unarchive as UnarchiveIcon,
   Inventory2Outlined as EmptyEquipmentIcon
 } from "@mui/icons-material";
+import PageHeader from "../../Components/PageHeader";
+import { SectionCard } from "../../Components/WorkspaceUI";
 
 
 export default memo(function Equipment() {
@@ -390,19 +392,23 @@ export default memo(function Equipment() {
         </Alert>
       )}
 
-      {/* HEADER */}
-      <Paper sx={{ p: { xs: 2, md: 3 }, mb: 3, borderRadius: 3, bgcolor: 'background.paper', boxShadow: 3 }}>
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} md={4}>
-            <Typography variant="h5" fontWeight="bold" color="primary.main">
-              Equipment List
-            </Typography>
-            <Typography color="text.secondary">
-              Manage all equipment and availability
-            </Typography>
-          </Grid>
+      <PageHeader
+        eyebrow="Inventory catalog"
+        title="Equipment"
+        description="Search equipment, review availability, and manage the records assigned to each laboratory."
+        actions={(
+          <>
+            {selectedItems.length > 0 && <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={handleBulkDelete}>Delete {selectedItems.length}</Button>}
+            {!isCustodian && <Button component={Link} to="new/" variant="contained" startIcon={<AddIcon />}>Add equipment</Button>}
+            <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setImportModalOpen(true)}>Import</Button>
+            {selectedItems.length > 0 && <Button variant="outlined" startIcon={<DownloadIcon />} onClick={() => exportToExcel()}>Export selected</Button>}
+          </>
+        )}
+      />
 
-          <Grid item xs={12} md={4}>
+      <SectionCard sx={{ mb: 2.5, overflow: 'visible' }}>
+        <Grid container spacing={2} alignItems="center" sx={{ p: 2 }}>
+          <Grid item xs={12} md={9}>
             <Select
               ref={selectRef}
               isMulti
@@ -412,57 +418,39 @@ export default memo(function Equipment() {
               onInputChange={handleInputChange}
               onKeyDown={handleKeyDown}
               inputValue={query}
-              placeholder="Search or filter..."
-              styles={{ container: base => ({ ...base, width: '100%', zIndex: 1300 }) }}
+              placeholder="Search by name, laboratory, category, or status…"
+              styles={{
+                container: (base) => ({ ...base, width: '100%', zIndex: 1300 }),
+                control: (base) => ({ ...base, minHeight: 44, borderColor: theme.palette.divider, backgroundColor: theme.palette.background.paper, boxShadow: 'none' }),
+                menu: (base) => ({ ...base, backgroundColor: theme.palette.background.paper }),
+              }}
             />
           </Grid>
-
-          <Grid item xs={12} md={4} sx={{ textAlign: 'right' }}>
-            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-              {selectedItems.length > 0 && (
-                <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={handleBulkDelete}>
-                  Delete {selectedItems.length}
-                </Button>
-              )}
-              <Button component={Link} to="new/" variant="contained" startIcon={<AddIcon />}>
-                Add Equipment
-              </Button>
-              <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setImportModalOpen(true)}>
-                Import Excel
-              </Button>
-              {selectedItems.length > 0 && (
-                <Button variant="outlined" startIcon={<DownloadIcon />} onClick={() => exportToExcel()}>
-                  Export Selected
-                </Button>
-              )}
-            </Box>
+          <Grid item xs={12} md={3} sx={{ display: 'flex', justifyContent: { xs: 'space-between', md: 'flex-end' }, alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">{searchData(filteredEquipment).length} records</Typography>
+            <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewModeChange} size="small" aria-label="Equipment view">
+              <ToggleButton value="table" aria-label="Table view"><FormatListBulletedIcon fontSize="small" /></ToggleButton>
+              <ToggleButton value="card" aria-label="Card view"><GridViewIcon fontSize="small" /></ToggleButton>
+            </ToggleButtonGroup>
           </Grid>
         </Grid>
-
-        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-          <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewModeChange} size="small">
-            <ToggleButton value="table"><FormatListBulletedIcon /></ToggleButton>
-            <ToggleButton value="card"><GridViewIcon /></ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-      </Paper>
+      </SectionCard>
 
       {/* TABLE VIEW */}
       {viewMode === "table" ? (
-        <TableContainer component={Paper} sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: 3 }}>
+        <TableContainer component={Paper} variant="outlined" sx={{ overflow: 'hidden' }}>
           <Table stickyHeader>
             <TableHead>
-              <TableRow sx={{ bgcolor: "primary.main" }}>
-                <TableCell sx={{ color: "common.white", fontWeight: "bold", py: 2 }}>
+              <TableRow>
+                <TableCell>
                   <Checkbox
                     indeterminate={selectedItems.length > 0 && !isSelectAllChecked()}
                     checked={selectAll || isSelectAllChecked()}
                     onChange={e => handleSelectAllChange(e.target.checked)}
-                    sx={{ color: 'white', '&.Mui-checked': { color: 'white' } }}
                   />
                 </TableCell>
                 {["ID", "Image", "Name", "Availability", "Description", "Laboratory", "Categories", "Actions"].map(header => (
-                  <TableCell key={header} sx={{ color: "common.white", fontWeight: "bold", py: 2 }}>
+                  <TableCell key={header}>
                     {header}
                   </TableCell>
                 ))}
@@ -576,7 +564,7 @@ export default memo(function Equipment() {
             }
             return itemsToShow.map(item => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={item.id}>
-                <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', boxShadow: 3 }}>
+                <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                   <Box
                     component={Link}
                     to={`info/${item.id}`}

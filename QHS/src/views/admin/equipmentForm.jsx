@@ -1,362 +1,192 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import axiosClient, { backendBaseUrl } from "../../axiosClient";
-import { useStateContext } from "../../Context/ContextProvider";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import DeleteIcon from "@mui/icons-material/Delete";
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Box,
-  Button,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  InputLabel,
-  MenuItem,
-  Radio,
-  RadioGroup,
-  Select as MuiSelect,
-  TextField,
-  Typography,
-  useTheme,
-  Alert,
-  CircularProgress,
-  IconButton,
-  Stack
-} from "@mui/material";
-import ReactSelect from "react-select";
-import { styled } from "@mui/material/styles";
+  Alert, Box, Button, Chip, CircularProgress, FormControl, FormControlLabel,
+  FormHelperText, FormLabel, Grid, InputLabel, MenuItem, Radio, RadioGroup,
+  Select, Stack, TextField, Typography,
+} from '@mui/material';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import UploadOutlinedIcon from '@mui/icons-material/UploadOutlined';
+import axiosClient, { assetUrl } from '../../axiosClient';
+import { useStateContext } from '../../Context/ContextProvider';
+import PageHeader from '../../Components/PageHeader';
+import { SectionCard, SectionHeading } from '../../Components/WorkspaceUI';
 
-const StyledFileInput = styled("input")({
-  width: "100%",
-  padding: "10px",
-  borderRadius: "4px",
-  border: "1px solid",
-  borderColor: "divider",
-  backgroundColor: "background.paper",
-  color: "text.primary",
-  "&::file-selector-button": {
-    padding: "8px 16px",
-    marginRight: "12px",
-    backgroundColor: "primary.main",
-    color: "common.white",
-    border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
-  },
-});
+const emptyEquipment = {
+  id: null,
+  name: '',
+  condition: 'New',
+  description: '',
+  image: null,
+  laboratory_id: '',
+  category_ids: [],
+};
 
 export default function EquipmentForm() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const theme = useTheme();
   const { user } = useStateContext();
   const equipmentPath = user?.role === 'custodian' ? '/custodian/equipment' : '/admin/equipment';
-
-  const [equipment, setEquipment] = useState({
-    id: null,
-    name: "",
-    condition: "",
-    description: "",
-    image: null,
-    laboratory_id: "",
-    category_ids: [],
-  });
-
-  const [loading, setLoading] = useState(false);
+  const [equipment, setEquipment] = useState(emptyEquipment);
+  const [loading, setLoading] = useState(Boolean(id));
   const [submitting, setSubmitting] = useState(false);
-  const [errors, setErrors] = useState(null);
+  const [errors, setErrors] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [laboratories, setLaboratories] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [selectedCategories, setSelectedCategories] = useState([]);
-
-  // Track if we want to delete the current image
   const [removeImage, setRemoveImage] = useState(false);
 
-  const BASE_URL = backendBaseUrl;
-  const defaultImage = `${BASE_URL}/storage/itemImage/No-image-default.png`;
-
-  const getImageUrl = (image) => {
-    if (!image || image === "itemImage/No-image-default.png") return defaultImage;
-    return `${BASE_URL}/storage/${image}`;
-  };
-
   useEffect(() => {
-    if (id) {
-      setLoading(true);
-      axiosClient.get(`/equipment/${id}`).then(({ data }) => {
-        const eq = data.data;
+    let active = true;
+    Promise.all([
+      axiosClient.get('/laboratories'),
+      axiosClient.get('/categories'),
+      id ? axiosClient.get(`/equipment/${id}`) : Promise.resolve(null),
+    ]).then(([labResponse, categoryResponse, equipmentResponse]) => {
+      if (!active) return;
+      setLaboratories(labResponse.data.data || []);
+      setCategories(categoryResponse.data.data || []);
+      if (equipmentResponse) {
+        const record = equipmentResponse.data.data;
         setEquipment({
-          id: eq.id,
-          name: eq.name || "",
-          condition: eq.condition || "",
-          description: eq.description || "",
-          image: eq.image,
-          laboratory_id: eq.laboratory_id || "",
-          category_ids: eq.categories?.map(c => c.id) || [],
+          id: record.id,
+          name: record.name || '',
+          condition: record.condition || 'New',
+          description: record.description || '',
+          image: record.image,
+          laboratory_id: record.laboratory_id || '',
+          category_ids: record.categories?.map((category) => category.id) || [],
         });
-        setSelectedCategories(eq.categories?.map(c => ({ value: c.id, label: c.name })) || []);
-        
-        // Only show current image if it exists and we're not removing it
-        if (eq.image && !removeImage) {
-          setPreviewImage(getImageUrl(eq.image));
-        } else {
-          setPreviewImage(defaultImage);
-        }
-
-        setRemoveImage(false); // reset flag
-        setLoading(false);
-      }).catch(() => {
-        setErrors({ general: ["Failed to load equipment."] });
-        setLoading(false);
-      });
-    } else {
-      setPreviewImage(defaultImage);
-      setRemoveImage(false);
-    }
+        setPreviewImage(record.image ? assetUrl(`/storage/${record.image}`) : null);
+      }
+      setErrors({});
+    }).catch(() => setErrors({ general: ['Equipment details could not be loaded.'] }))
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
   }, [id]);
 
-  useEffect(() => {
-    axiosClient.get("/laboratories").then(({ data }) => setLaboratories(data.data || []));
-    axiosClient.get("/categories").then(({ data }) => setCategories(data.data || []));
-  }, []);
+  useEffect(() => () => {
+    if (previewImage?.startsWith('blob:')) URL.revokeObjectURL(previewImage);
+  }, [previewImage]);
 
-  const handleImageSelection = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSelectedImage(file);
-      setPreviewImage(URL.createObjectURL(file));
-      setRemoveImage(false); // cancel remove if new image selected
-    }
+  const selectedLabName = useMemo(() => laboratories.find((lab) => lab.id === Number(equipment.laboratory_id))?.name, [equipment.laboratory_id, laboratories]);
+
+  const handleImageSelection = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (previewImage?.startsWith('blob:')) URL.revokeObjectURL(previewImage);
+    setSelectedImage(file);
+    setPreviewImage(URL.createObjectURL(file));
+    setRemoveImage(false);
   };
 
   const handleRemoveImage = () => {
+    if (previewImage?.startsWith('blob:')) URL.revokeObjectURL(previewImage);
     setSelectedImage(null);
-    setPreviewImage(defaultImage);
-    setRemoveImage(true); // tell backend to delete old image
+    setPreviewImage(null);
+    setRemoveImage(true);
   };
 
-  const handleCategoryChange = (selected) => {
-    setSelectedCategories(selected || []);
-    setEquipment(prev => ({
-      ...prev,
-      category_ids: selected ? selected.map(s => s.value) : []
-    }));
-  };
-
-  const onSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (event) => {
+    event.preventDefault();
     setSubmitting(true);
-    setErrors(null);
-
-    // REMOVED: setRemoveImage(false);  <--- This was resetting the flag too early!
-
-    const formData = new FormData();
-    formData.append("name", equipment.name);
-    formData.append("condition", equipment.condition);
-    formData.append("description", equipment.description || "");
-    formData.append("laboratory_id", equipment.laboratory_id);
-
-    equipment.category_ids.forEach(id => formData.append("category_ids[]", id));
-
-    // Handle image logic
-    if (selectedImage) {
-      formData.append("image", selectedImage);
-    } else if (removeImage && equipment.id) {
-      // Explicitly tell Laravel to remove the image
-      formData.append("remove_image", "1");
-    }
-
-    if (equipment.id) {
-      formData.append("_method", "PUT");
-    }
+    setErrors({});
+    const payload = new FormData();
+    payload.append('name', equipment.name);
+    payload.append('condition', equipment.condition);
+    payload.append('description', equipment.description || '');
+    payload.append('laboratory_id', equipment.laboratory_id);
+    equipment.category_ids.forEach((categoryId) => payload.append('category_ids[]', categoryId));
+    if (selectedImage) payload.append('image', selectedImage);
+    else if (removeImage && equipment.id) payload.append('remove_image', '1');
+    if (equipment.id) payload.append('_method', 'PUT');
 
     try {
-      if (equipment.id) {
-        await axiosClient.post(`/equipment/${equipment.id}`, formData, {
-          headers: { "Content-Type": "multipart/form-data" }
-        });
-      } else {
-        await axiosClient.post("/equipment", formData, {
-          headers: { "Content-Type": "multipart/form-data" }
-        });
-      }
+      await axiosClient.post(equipment.id ? `/equipment/${equipment.id}` : '/equipment', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
       navigate(equipmentPath);
-    } catch (err) {
-      if (err.response?.status === 422) {
-        setErrors(err.response.data.errors);
-      } else {
-        setErrors({ general: ["Something went wrong. Please try again."] });
-      }
+    } catch (requestError) {
+      if (requestError.response?.status === 422) setErrors(requestError.response.data.errors || {});
+      else setErrors({ general: ['Equipment could not be saved. Please try again.'] });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Box sx={{ maxWidth: 800, mx: "auto", p: { xs: 2, sm: 3 } }}>
-      <Button component={Link} to={equipmentPath} startIcon={<ArrowBackIcon />} variant="outlined" sx={{ mb: 3 }}>
-        Back to Equipment
-      </Button>
+    <Box sx={{ maxWidth: 1120, mx: 'auto' }}>
+      <PageHeader backTo={equipmentPath} eyebrow={equipment.id ? 'Edit record' : 'New record'} title={equipment.id ? 'Edit equipment' : 'Add equipment'} description="Create the shared equipment record first. Individual trackable units can be added from its detail page." />
+      {errors.general && <Alert severity="error" sx={{ mb: 2.5 }}>{errors.general.join(' ')}</Alert>}
 
-      <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom>
-        {equipment.id ? "Edit Equipment" : "Add New Equipment"}
-      </Typography>
+      {loading ? (
+        <Box sx={{ display: 'grid', minHeight: 360, placeItems: 'center' }}><CircularProgress /></Box>
+      ) : (
+        <Box component="form" onSubmit={onSubmit} noValidate>
+          <Grid container spacing={2.5} alignItems="stretch">
+            <Grid item xs={12} md={7}>
+              <Stack spacing={2.5}>
+                <SectionCard>
+                  <SectionHeading icon={<Inventory2OutlinedIcon />} title="Equipment details" description="Give staff and borrowers a clear, recognizable record." />
+                  <Stack spacing={2.25} sx={{ p: { xs: 2, sm: 2.5 } }}>
+                    <TextField fullWidth required label="Equipment name" value={equipment.name} onChange={(event) => setEquipment((current) => ({ ...current, name: event.target.value }))} error={Boolean(errors.name)} helperText={errors.name?.[0] || 'Use the common name shown on the item or storage label.'} />
+                    <TextField fullWidth label="Description" value={equipment.description} onChange={(event) => setEquipment((current) => ({ ...current, description: event.target.value }))} multiline minRows={4} error={Boolean(errors.description)} helperText={errors.description?.[0] || 'Optional: include model, intended use, or handling notes.'} />
+                    <FormControl fullWidth required error={Boolean(errors.laboratory_id)}>
+                      <InputLabel id="equipment-lab-label">Laboratory</InputLabel>
+                      <Select labelId="equipment-lab-label" value={equipment.laboratory_id} label="Laboratory" onChange={(event) => setEquipment((current) => ({ ...current, laboratory_id: event.target.value }))}>
+                        {laboratories.map((lab) => <MenuItem key={lab.id} value={lab.id}>{lab.name}</MenuItem>)}
+                      </Select>
+                      <FormHelperText>{errors.laboratory_id?.[0] || 'The equipment will appear in this laboratory.'}</FormHelperText>
+                    </FormControl>
+                    <FormControl fullWidth error={Boolean(errors.category_ids)}>
+                      <InputLabel id="equipment-category-label">Categories</InputLabel>
+                      <Select labelId="equipment-category-label" multiple value={equipment.category_ids} label="Categories" onChange={(event) => setEquipment((current) => ({ ...current, category_ids: event.target.value }))} renderValue={(selected) => <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">{selected.map((categoryId) => <Chip key={categoryId} label={categories.find((category) => category.id === categoryId)?.name || categoryId} size="small" />)}</Stack>}>
+                        {categories.map((category) => <MenuItem key={category.id} value={category.id}>{category.name}</MenuItem>)}
+                      </Select>
+                      <FormHelperText>{errors.category_ids?.[0] || 'Choose any labels that help people find this equipment.'}</FormHelperText>
+                    </FormControl>
+                    <FormControl error={Boolean(errors.condition)}>
+                      <FormLabel>Overall condition</FormLabel>
+                      <RadioGroup row value={equipment.condition} onChange={(event) => setEquipment((current) => ({ ...current, condition: event.target.value }))} sx={{ mt: 0.75, gap: 0.5 }}>
+                        {['New', 'Used', 'Damaged'].map((condition) => <FormControlLabel key={condition} value={condition} control={<Radio />} label={condition} sx={{ mr: 2 }} />)}
+                      </RadioGroup>
+                      <FormHelperText>{errors.condition?.[0] || 'This summarizes the equipment type; each unit also has its own condition.'}</FormHelperText>
+                    </FormControl>
+                  </Stack>
+                </SectionCard>
+              </Stack>
+            </Grid>
 
-      <Box component="form" onSubmit={onSubmit} sx={{ bgcolor: "background.paper", borderRadius: 3, boxShadow: 4, p: 4 }}>
-        {loading && (
-          <Box textAlign="center" py={4}>
-            <CircularProgress />
-          </Box>
-        )}
-
-        {errors?.general && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {errors.general.map((err, i) => <div key={i}>{err}</div>)}
-          </Alert>
-        )}
-
-        {!loading && (
-          <>
-            <TextField
-              fullWidth
-              label="Equipment Name"
-              value={equipment.name}
-              onChange={e => setEquipment({ ...equipment, name: e.target.value })}
-              required
-              sx={{ mb: 3 }}
-            />
-
-            <FormControl component="fieldset" sx={{ mb: 3 }}>
-              <FormLabel component="legend">Condition</FormLabel>
-              <RadioGroup
-                row
-                value={equipment.condition}
-                onChange={e => setEquipment({ ...equipment, condition: e.target.value })}
-              >
-                {["New", "Used", "Damaged"].map(c => (
-                  <FormControlLabel key={c} value={c} control={<Radio />} label={c} />
-                ))}
-              </RadioGroup>
-            </FormControl>
-
-            <TextField
-              fullWidth
-              label="Description (Optional)"
-              value={equipment.description}
-              onChange={e => setEquipment({ ...equipment, description: e.target.value })}
-              multiline
-              rows={4}
-              sx={{ mb: 3 }}
-            />
-
-            <FormControl fullWidth sx={{ mb: 3 }}>
-              <InputLabel>Laboratory</InputLabel>
-              <MuiSelect
-                value={equipment.laboratory_id}
-                label="Laboratory"
-                onChange={e => setEquipment({ ...equipment, laboratory_id: e.target.value })}
-              >
-                {laboratories.map(lab => (
-                  <MenuItem key={lab.id} value={lab.id}>{lab.name}</MenuItem>
-                ))}
-              </MuiSelect>
-            </FormControl>
-
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" gutterBottom>Categories</Typography>
-              <ReactSelect
-                isMulti
-                options={categories.map(c => ({ value: c.id, label: c.name }))}
-                value={selectedCategories}
-                onChange={handleCategoryChange}
-                placeholder="Select categories..."
-                styles={{
-                  control: base => ({ ...base, backgroundColor: theme.palette.background.paper, borderColor: theme.palette.divider }),
-                  menu: base => ({ ...base, backgroundColor: theme.palette.background.paper }),
-                }}
-              />
-            </Box>
-
-            {/* IMAGE UPLOAD SECTION */}
-            <Box sx={{ mb: 4 }}>
-              <Typography variant="subtitle1" gutterBottom>Equipment Image</Typography>
-
-              <StyledFileInput
-                type="file"
-                accept="image/*"
-                onChange={handleImageSelection}
-              />
-
-              {/* Show current image + remove button when editing */}
-              {(previewImage && previewImage !== defaultImage) && (
-                <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 3 }}>
-                  <Box
-                    component="img"
-                    src={previewImage}
-                    alt="Current"
-                    sx={{
-                      width: 200,
-                      height: 200,
-                      objectFit: "cover",
-                      borderRadius: 3,
-                      boxShadow: 3
-                    }}
-                  />
-                  <Box>
-                    {equipment.id && !selectedImage && !removeImage && (
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        startIcon={<DeleteIcon />}
-                        onClick={handleRemoveImage}
-                        sx={{ mt: 1 }}
-                      >
-                        Remove Image
-                      </Button>
-                    )}
-                    {removeImage && (
-                      <Typography color="error" variant="body2" sx={{ mt: 1 }}>
-                        Image will be removed on save
-                      </Typography>
-                    )}
+            <Grid item xs={12} md={5}>
+              <SectionCard sx={{ height: '100%' }}>
+                <SectionHeading icon={<ImageOutlinedIcon />} title="Equipment image" description="A simple photo makes the item easier to identify." />
+                <Stack spacing={2} sx={{ p: { xs: 2, sm: 2.5 } }}>
+                  <Box sx={{ display: 'grid', width: '100%', aspectRatio: '4 / 3', placeItems: 'center', overflow: 'hidden', borderRadius: 2.5, border: '1px dashed', borderColor: 'divider', bgcolor: 'action.hover' }}>
+                    {previewImage ? <Box component="img" src={previewImage} alt="Equipment preview" sx={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Stack alignItems="center" spacing={1} color="text.secondary"><ImageOutlinedIcon sx={{ fontSize: 44 }} /><Typography variant="body2">No image selected</Typography></Stack>}
+                  </Box>
+                  <Button component="label" variant="outlined" startIcon={<UploadOutlinedIcon />}>
+                    {previewImage ? 'Choose another image' : 'Choose image'}
+                    <input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={handleImageSelection} />
+                  </Button>
+                  {previewImage && <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={handleRemoveImage}>Remove image</Button>}
+                  {removeImage && <Alert severity="warning">The current image will be removed when you save.</Alert>}
+                  <Box sx={{ mt: 'auto', pt: 1 }}>
+                    <Typography variant="overline" color="text.secondary" fontWeight={800}>Record preview</Typography>
+                    <Typography variant="h6" sx={{ mt: 0.4 }}>{equipment.name || 'Untitled equipment'}</Typography>
+                    <Typography variant="body2" color="text.secondary">{selectedLabName || 'No laboratory selected'}</Typography>
                   </Box>
                 </Stack>
-              )}
+              </SectionCard>
+            </Grid>
+          </Grid>
 
-              {/* Show new selected image preview */}
-              {selectedImage && (
-                <Box sx={{ mt: 3, textAlign: "center" }}>
-                  <Typography variant="caption" display="block" color="text.secondary" gutterBottom>
-                    New image preview:
-                  </Typography>
-                  <img
-                    src={previewImage}
-                    alt="New preview"
-                    style={{
-                      maxWidth: 250,
-                      maxHeight: 250,
-                      borderRadius: 12,
-                      objectFit: "cover",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
-                    }}
-                  />
-                </Box>
-              )}
-            </Box>
-
-            <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
-              <Button component={Link} to={equipmentPath} variant="outlined" disabled={submitting}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="contained" size="large" disabled={submitting}>
-                {submitting ? <CircularProgress size={24} /> : (equipment.id ? "Update" : "Create")} Equipment
-              </Button>
-            </Box>
-          </>
-        )}
-      </Box>
+          <Stack direction={{ xs: 'column-reverse', sm: 'row' }} justifyContent="flex-end" spacing={1} sx={{ mt: 2.5 }}>
+            <Button color="inherit" onClick={() => navigate(equipmentPath)} disabled={submitting}>Cancel</Button>
+            <Button type="submit" variant="contained" disabled={submitting}>{submitting ? <CircularProgress size={21} color="inherit" /> : equipment.id ? 'Save changes' : 'Create equipment'}</Button>
+          </Stack>
+        </Box>
+      )}
     </Box>
   );
 }

@@ -1,519 +1,204 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useStateContext } from '../Context/ContextProvider';
-import axiosClient, { assetUrl } from '../axiosClient';
+import { useEffect, useState } from 'react';
 import {
-  Container,
-  Box,
-  Card,
-  CardContent,
-  TextField,
-  Button,
-  Avatar,
-  Typography,
   Alert,
+  Avatar,
+  Box,
+  Button,
   CircularProgress,
-  Stack,
+  Container,
   Divider,
+  Grid,
   IconButton,
   InputAdornment,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
 } from '@mui/material';
-import {
-  PhotoCamera as PhotoCameraIcon,
-  Visibility as VisibilityIcon,
-  VisibilityOff as VisibilityOffIcon,
-} from '@mui/icons-material';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import axiosClient, { assetUrl } from '../axiosClient';
+import { useStateContext } from '../Context/ContextProvider';
+import { getInitials } from '../utils';
+import PageHeader from '../Components/PageHeader';
+import { SectionCard, SectionHeading } from '../Components/WorkspaceUI';
 
 export default function Profile() {
   const { user, setUser } = useStateContext();
-  const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    address: '',
-  });
-
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
-
+  const [formData, setFormData] = useState({ name: '', email: '', address: '' });
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [profileImage, setProfileImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
-  const [showPasswords, setShowPasswords] = useState({
-    current: false,
-    new: false,
-    confirm: false,
-  });
-
+  const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        name: user.name || '',
-        email: user.email || '',
-        address: user.address || '',
-      });
-      if (user.avatar) {
-        setPreviewImage(assetUrl(`/storage/${user.avatar}`));
-      }
-    }
+    if (!user) return;
+    setFormData({ name: user.name || '', email: user.email || '', address: user.address || '' });
+    setPreviewImage(user.avatar ? assetUrl(`/storage/${user.avatar}`) : null);
   }, [user]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  useEffect(() => () => {
+    if (previewImage?.startsWith('blob:')) URL.revokeObjectURL(previewImage);
+  }, [previewImage]);
 
-  const handlePasswordChange = (e) => {
-    const { name, value } = e.target;
-    setPasswordData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setProfileImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewImage(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleProfileUpdate = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const clearMessages = () => {
     setSuccessMessage('');
     setErrorMessage('');
+  };
 
+  const handleImageSelect = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (previewImage?.startsWith('blob:')) URL.revokeObjectURL(previewImage);
+    setProfileImage(file);
+    setPreviewImage(URL.createObjectURL(file));
+  };
+
+  const handleProfileUpdate = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    clearMessages();
     try {
-      const formDataObj = new FormData();
-      formDataObj.append('name', formData.name);
-      formDataObj.append('email', formData.email);
-      formDataObj.append('address', formData.address);
-
-      if (profileImage) {
-        formDataObj.append('avatar', profileImage);
-      }
-
-      const response = await axiosClient.post('/profile/update', formDataObj, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
+      const payload = new FormData();
+      payload.append('name', formData.name);
+      payload.append('email', formData.email);
+      payload.append('address', formData.address);
+      if (profileImage) payload.append('avatar', profileImage);
+      const response = await axiosClient.post('/profile/update', payload, { headers: { 'Content-Type': 'multipart/form-data' } });
       setUser(response.data.user);
       setProfileImage(null);
-      setSuccessMessage('Profile updated successfully!');
-      setTimeout(() => setSuccessMessage(''), 4000);
+      setSuccessMessage('Your profile details were updated.');
     } catch (error) {
-      setErrorMessage(
-        error.response?.data?.message || 'Failed to update profile'
-      );
+      setErrorMessage(error.response?.data?.message || 'Your profile could not be updated.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePasswordUpdate = async (e) => {
-    e.preventDefault();
-
+  const handlePasswordUpdate = async (event) => {
+    event.preventDefault();
+    clearMessages();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setErrorMessage('New passwords do not match');
+      setErrorMessage('The new password and confirmation do not match.');
       return;
     }
-
     if (passwordData.newPassword.length < 6) {
-      setErrorMessage('Password must be at least 6 characters');
+      setErrorMessage('Your new password must contain at least 6 characters.');
       return;
     }
-
     setLoading(true);
-    setSuccessMessage('');
-    setErrorMessage('');
-
     try {
       await axiosClient.post('/profile/password', {
         current_password: passwordData.currentPassword,
         new_password: passwordData.newPassword,
         password_confirmation: passwordData.confirmPassword,
       });
-
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      });
-      setSuccessMessage('Password updated successfully!');
-      setTimeout(() => setSuccessMessage(''), 4000);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setSuccessMessage('Your password was updated.');
     } catch (error) {
-      setErrorMessage(
-        error.response?.data?.message || 'Failed to update password'
-      );
+      setErrorMessage(error.response?.data?.message || 'Your password could not be updated.');
     } finally {
       setLoading(false);
     }
   };
 
+  const passwordField = (label, name, key, autoComplete) => (
+    <TextField
+      fullWidth
+      required
+      label={label}
+      name={name}
+      type={showPasswords[key] ? 'text' : 'password'}
+      value={passwordData[name]}
+      autoComplete={autoComplete}
+      onChange={(event) => setPasswordData((current) => ({ ...current, [name]: event.target.value }))}
+      InputProps={{
+        endAdornment: (
+          <InputAdornment position="end">
+            <IconButton edge="end" aria-label={`${showPasswords[key] ? 'Hide' : 'Show'} ${label.toLowerCase()}`} onClick={() => setShowPasswords((current) => ({ ...current, [key]: !current[key] }))}>
+              {showPasswords[key] ? <VisibilityOffIcon /> : <VisibilityIcon />}
+            </IconButton>
+          </InputAdornment>
+        ),
+      }}
+    />
+  );
+
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight="700" sx={{ color: '#800000', mb: 2 }}>
-          Profile Settings
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Manage your account information and security
-        </Typography>
-      </Box>
+    <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
+      <PageHeader eyebrow="Account" title="Profile settings" description="Keep your borrower information accurate and protect access to your account." />
 
-      {successMessage && (
-        <Alert severity="success" sx={{ mb: 3, borderRadius: '8px' }}>
-          {successMessage}
-        </Alert>
-      )}
+      {successMessage && <Alert severity="success" onClose={() => setSuccessMessage('')} sx={{ mb: 2.5 }}>{successMessage}</Alert>}
+      {errorMessage && <Alert severity="error" onClose={() => setErrorMessage('')} sx={{ mb: 2.5 }}>{errorMessage}</Alert>}
 
-      {errorMessage && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }}>
-          {errorMessage}
-        </Alert>
-      )}
-
-      {/* Profile Picture Section */}
-      <Card sx={{ mb: 3, borderRadius: '12px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
-        <CardContent sx={{ p: 4 }}>
-          <Typography variant="h6" fontWeight="700" sx={{ mb: 3 }}>
-            Profile Picture
-          </Typography>
-
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: { xs: 'column', sm: 'row' },
-              gap: 3,
-              alignItems: { xs: 'center', sm: 'flex-start' },
-            }}
-          >
-            <Box sx={{ position: 'relative' }}>
-              <Avatar
-                alt={user?.name}
-                src={user?.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined}
-                sx={{
-                  width: 120,
-                  height: 120,
-                  fontSize: '3rem',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                }}
-              />
-              <input
-                type="file"
-                accept="image/*"
-                id="avatar-input"
-                hidden
-                onChange={handleImageSelect}
-              />
-              <label htmlFor="avatar-input">
-                <IconButton
-                  component="span"
-                  sx={{
-                    position: 'absolute',
-                    bottom: 0,
-                    right: 0,
-                    backgroundColor: '#800000',
-                    color: 'white',
-                    width: 48,
-                    height: 48,
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      backgroundColor: '#600000',
-                      transform: 'scale(1.05)',
-                    },
-                  }}
-                >
-                  <PhotoCameraIcon />
-                </IconButton>
-              </label>
-            </Box>
-
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Click the camera icon to upload a new profile picture. Supported formats: JPG, PNG, GIF
+      <Grid container spacing={2.5} alignItems="flex-start">
+        <Grid item xs={12} md={4}>
+          <Paper variant="outlined" sx={{ p: { xs: 2.5, sm: 3 }, position: { md: 'sticky' }, top: { md: 96 } }}>
+            <Stack alignItems="center" textAlign="center">
+              <Box sx={{ position: 'relative' }}>
+                <Avatar src={previewImage || undefined} alt={user?.name || 'Profile'} sx={{ width: 112, height: 112, bgcolor: 'primary.main', fontSize: '2rem', fontWeight: 800 }}>
+                  {getInitials(user?.name)}
+                </Avatar>
+                <input id="avatar-input" type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={handleImageSelect} />
+                <TooltipUpload />
+              </Box>
+              <Typography variant="h6" sx={{ mt: 2 }}>{formData.name || 'Your profile'}</Typography>
+              <Typography variant="body2" color="text.secondary">{formData.email}</Typography>
+              <Divider flexItem sx={{ my: 2.5 }} />
+              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65 }}>
+                Use a clear photo and current address so custodians can identify your requests quickly.
               </Typography>
-              {profileImage && (
-                <Typography variant="caption" sx={{ color: '#800000', fontWeight: 600 }}>
-                  ✓ New image selected (click Save to apply)
-                </Typography>
-              )}
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
-
-      {/* Personal Information Section */}
-      <Card sx={{ mb: 3, borderRadius: '12px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
-        <CardContent sx={{ p: 4 }}>
-          <Typography variant="h6" fontWeight="700" sx={{ mb: 3 }}>
-            Personal Information
-          </Typography>
-
-          <form onSubmit={handleProfileUpdate}>
-            <Stack spacing={2.5}>
-              <TextField
-                fullWidth
-                label="Full Name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                variant="outlined"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    transition: 'all 0.3s ease',
-                    '&:hover fieldset': {
-                      borderColor: '#800000',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#800000',
-                    },
-                  },
-                }}
-              />
-
-              <TextField
-                fullWidth
-                label="Email Address"
-                name="email"
-                type="email"
-                value={formData.email}
-                disabled
-                variant="outlined"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    transition: 'all 0.3s ease',
-                    '&:hover fieldset': {
-                      borderColor: '#800000',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#800000',
-                    },
-                  },
-                }}
-              />
-
-              <TextField
-                fullWidth
-                label="Address"
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                variant="outlined"
-                multiline
-                rows={3}
-                placeholder="Enter your residential address"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    transition: 'all 0.3s ease',
-                    '&:hover fieldset': {
-                      borderColor: '#800000',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#800000',
-                    },
-                  },
-                }}
-              />
-
-              <Button
-                type="submit"
-                variant="contained"
-                fullWidth
-                disabled={loading}
-                sx={{
-                  bgcolor: '#800000',
-                  color: 'white',
-                  fontWeight: 600,
-                  py: 1.3,
-                  borderRadius: '8px',
-                  transition: 'all 0.3s ease',
-                  mt: 2,
-                  '&:hover': {
-                    bgcolor: '#600000',
-                    boxShadow: '0 4px 12px rgba(128, 0, 0, 0.3)',
-                    transform: 'translateY(-2px)',
-                  },
-                  '&:disabled': {
-                    bgcolor: '#ccc',
-                  },
-                }}
-              >
-                {loading ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
-              </Button>
+              {profileImage && <Alert severity="info" sx={{ mt: 2, width: '100%', textAlign: 'left' }}>A new photo is ready to save.</Alert>}
             </Stack>
-          </form>
-        </CardContent>
-      </Card>
+          </Paper>
+        </Grid>
 
-      {/* Change Password Section */}
-      <Card sx={{ borderRadius: '12px', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)' }}>
-        <CardContent sx={{ p: 4 }}>
-          <Typography variant="h6" fontWeight="700" sx={{ mb: 3 }}>
-            Change Password
-          </Typography>
+        <Grid item xs={12} md={8}>
+          <Stack spacing={2.5}>
+            <SectionCard component="form" onSubmit={handleProfileUpdate}>
+              <SectionHeading icon={<PersonOutlineIcon />} title="Personal information" description="These details appear on your equipment requests." />
+              <Stack spacing={2.25} sx={{ p: { xs: 2, sm: 2.5 } }}>
+                <TextField fullWidth required label="Full name" value={formData.name} onChange={(event) => setFormData((current) => ({ ...current, name: event.target.value }))} autoComplete="name" />
+                <TextField fullWidth disabled label="Email address" value={formData.email} helperText="Email changes are managed by your school administrator." />
+                <TextField fullWidth label="Address" value={formData.address} onChange={(event) => setFormData((current) => ({ ...current, address: event.target.value }))} multiline minRows={3} placeholder="Enter your current address" helperText="Required before you can submit an equipment request." />
+                <Stack direction="row" justifyContent="flex-end">
+                  <Button type="submit" variant="contained" disabled={loading}>{loading ? <CircularProgress size={22} color="inherit" /> : 'Save profile'}</Button>
+                </Stack>
+              </Stack>
+            </SectionCard>
 
-          <form onSubmit={handlePasswordUpdate}>
-            <Stack spacing={2.5}>
-              <TextField
-                fullWidth
-                label="Current Password"
-                name="currentPassword"
-                type={showPasswords.current ? 'text' : 'password'}
-                value={passwordData.currentPassword}
-                onChange={handlePasswordChange}
-                variant="outlined"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() =>
-                          setShowPasswords((prev) => ({
-                            ...prev,
-                            current: !prev.current,
-                          }))
-                        }
-                        edge="end"
-                      >
-                        {showPasswords.current ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    transition: 'all 0.3s ease',
-                    '&:hover fieldset': {
-                      borderColor: '#800000',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#800000',
-                    },
-                  },
-                }}
-              />
-
-              <TextField
-                fullWidth
-                label="New Password"
-                name="newPassword"
-                type={showPasswords.new ? 'text' : 'password'}
-                value={passwordData.newPassword}
-                onChange={handlePasswordChange}
-                variant="outlined"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() =>
-                          setShowPasswords((prev) => ({
-                            ...prev,
-                            new: !prev.new,
-                          }))
-                        }
-                        edge="end"
-                      >
-                        {showPasswords.new ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    transition: 'all 0.3s ease',
-                    '&:hover fieldset': {
-                      borderColor: '#800000',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#800000',
-                    },
-                  },
-                }}
-              />
-
-              <TextField
-                fullWidth
-                label="Confirm New Password"
-                name="confirmPassword"
-                type={showPasswords.confirm ? 'text' : 'password'}
-                value={passwordData.confirmPassword}
-                onChange={handlePasswordChange}
-                variant="outlined"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() =>
-                          setShowPasswords((prev) => ({
-                            ...prev,
-                            confirm: !prev.confirm,
-                          }))
-                        }
-                        edge="end"
-                      >
-                        {showPasswords.confirm ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    transition: 'all 0.3s ease',
-                    '&:hover fieldset': {
-                      borderColor: '#800000',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#800000',
-                    },
-                  },
-                }}
-              />
-
-              <Button
-                type="submit"
-                variant="contained"
-                fullWidth
-                disabled={loading}
-                sx={{
-                  bgcolor: '#800000',
-                  color: 'white',
-                  fontWeight: 600,
-                  py: 1.3,
-                  borderRadius: '8px',
-                  transition: 'all 0.3s ease',
-                  mt: 2,
-                  '&:hover': {
-                    bgcolor: '#600000',
-                    boxShadow: '0 4px 12px rgba(128, 0, 0, 0.3)',
-                    transform: 'translateY(-2px)',
-                  },
-                  '&:disabled': {
-                    bgcolor: '#ccc',
-                  },
-                }}
-              >
-                {loading ? <CircularProgress size={24} color="inherit" /> : 'Update Password'}
-              </Button>
-            </Stack>
-          </form>
-        </CardContent>
-      </Card>
+            <SectionCard component="form" onSubmit={handlePasswordUpdate}>
+              <SectionHeading icon={<LockOutlinedIcon />} title="Password & security" description="Use a password you do not reuse on another account." />
+              <Stack spacing={2.25} sx={{ p: { xs: 2, sm: 2.5 } }}>
+                {passwordField('Current password', 'currentPassword', 'current', 'current-password')}
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>{passwordField('New password', 'newPassword', 'new', 'new-password')}</Grid>
+                  <Grid item xs={12} sm={6}>{passwordField('Confirm new password', 'confirmPassword', 'confirm', 'new-password')}</Grid>
+                </Grid>
+                <Typography variant="caption" color="text.secondary">Use at least 6 characters. A longer, unique passphrase is safer.</Typography>
+                <Stack direction="row" justifyContent="flex-end">
+                  <Button type="submit" variant="contained" disabled={loading}>{loading ? <CircularProgress size={22} color="inherit" /> : 'Update password'}</Button>
+                </Stack>
+              </Stack>
+            </SectionCard>
+          </Stack>
+        </Grid>
+      </Grid>
     </Container>
+  );
+}
+
+function TooltipUpload() {
+  return (
+    <Box component="label" htmlFor="avatar-input" sx={{ position: 'absolute', right: -4, bottom: -4, display: 'grid', width: 40, height: 40, placeItems: 'center', border: '3px solid', borderColor: 'background.paper', borderRadius: 2, bgcolor: 'primary.main', color: 'common.white', cursor: 'pointer', '&:hover': { bgcolor: 'primary.dark' } }}>
+      <PhotoCameraOutlinedIcon fontSize="small" />
+      <Box component="span" sx={{ position: 'absolute', width: 1, height: 1, p: 0, m: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>Choose profile photo</Box>
+    </Box>
   );
 }

@@ -19,6 +19,8 @@ import {
   Delete, InboxOutlined
 } from "@mui/icons-material";
 import { format } from "date-fns";
+import PageHeader from "../../Components/PageHeader";
+import { SectionCard } from "../../Components/WorkspaceUI";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -506,35 +508,29 @@ export default memo(function Transactions() {
 
   // ==================== RENDER ====================
   return (
-    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, minHeight: '100vh' }}>
-      {/* HEADER */}
-      <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={6}>
-            <Typography variant="h5" fontWeight="bold" color="primary">
-              Equipment Borrowing Requests
-            </Typography>
-          </Grid>
-          <Grid item xs={12} md={6} sx={{ textAlign: 'right' }}>
-            <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()}>
-              New Request
-            </Button>
-          </Grid>
-        </Grid>
+    <Box>
+      <PageHeader
+        eyebrow="Borrowing operations"
+        title="Transactions"
+        description="Review requests, assign individual units, and keep every handoff and return accountable."
+        actions={<Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()}>New request</Button>}
+      />
 
-        <Box mt={2}>
+      <SectionCard sx={{ mb: 2.5 }}>
+        <Box sx={{ p: 2 }}>
           <TextField
             fullWidth
-            placeholder="Search by ID, borrower, lab, or equipment..."
+            label="Search transactions"
+            placeholder="Request ID, borrower, laboratory, or equipment"
             value={search}
             onChange={e => setSearch(e.target.value)}
             InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1 }} /> }}
           />
         </Box>
-      </Paper>
+      </SectionCard>
 
       {/* TABLE */}
-      <Paper elevation={2}>
+      <Paper variant="outlined">
         {!loading && filtered.length === 0 && (
           <Box sx={{ display: { xs: 'grid', sm: 'none' }, px: 3, py: 6, placeItems: 'center', textAlign: 'center' }}>
             <InboxOutlined color="disabled" sx={{ fontSize: 46, mb: 1.5 }} />
@@ -545,16 +541,13 @@ export default memo(function Transactions() {
         <TableContainer sx={{ display: !loading && filtered.length === 0 ? { xs: 'none', sm: 'block' } : 'block', maxWidth: '100%', border: 0, borderRadius: 0 }}>
           <Table size={isMobile ? "small" : "medium"} sx={{ minWidth: isMobile ? 520 : 760 }}>
           <TableHead>
-            <TableRow sx={{ bgcolor: "primary.main" }}>
+            <TableRow>
               {["ID", "Borrower", !isMobile && "Lab", "Equipment", "Status", "Actions"]
                 .filter(Boolean)
                 .map((label) => (
                   <TableCell
                     key={label}
                     sx={{
-                      color: "common.white",
-                      fontWeight: "bold",
-                      fontSize: "1rem",
                       py: 2,
                     }}
                   >
@@ -679,7 +672,7 @@ export default memo(function Transactions() {
 
       {/* MAIN FORM MODAL */}
       <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md" fullScreen={isMobile}>
-        <DialogTitle sx={{ bgcolor: "primary.main", color: "white" }}>
+        <DialogTitle>
           {editMode ? "Edit Request" : "New Borrow Request"}
         </DialogTitle>
         <DialogContent dividers>
@@ -868,7 +861,7 @@ export default memo(function Transactions() {
         fullWidth
         fullScreen={isMobile}
       >
-        <DialogTitle sx={{ bgcolor: "primary.main", color: "white", pr: 15 }}>
+        <DialogTitle sx={{ pr: 15 }}>
           {isEditingItems ? "Edit Assigned Units" : "Transaction Details"}
           {canEditItems && !isEditingItems && (
             <Button
@@ -1134,7 +1127,7 @@ export default memo(function Transactions() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle sx={{ bgcolor: 'error.main', color: 'white' }}>Decline Request</DialogTitle>
+        <DialogTitle color="error.main">Decline request?</DialogTitle>
         <DialogContent dividers>
           <Typography variant="body2" sx={{ mb: 2 }}>
             Optionally provide a reason for declining this request. The borrower will see this in their Borrow History.

@@ -9,8 +9,10 @@ import {
 import { Download, Settings, Print as PrintIcon } from '@mui/icons-material';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend } from 'recharts';
 import { format, subDays } from 'date-fns';
+import { SectionCard } from '../../Components/WorkspaceUI';
+import PageHeader from '../../Components/PageHeader';
 
-export default memo(function DailyInventorySnapshots() {
+export default memo(function DailyInventorySnapshots({ embedded = false }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -908,6 +910,7 @@ export default memo(function DailyInventorySnapshots() {
 
   return (
     <Box>
+      {!embedded && <PageHeader eyebrow="Daily records" title="Inventory snapshots" description="Compare captured stock levels, produce reports, and configure the scheduled daily snapshot." />}
       {/* Header */}
       <Box sx={{
         display: 'flex',
@@ -917,8 +920,8 @@ export default memo(function DailyInventorySnapshots() {
         gap: 2,
         mb: 3,
       }}>
-        <Typography variant="h6" fontWeight="bold">
-          Daily Inventory Snapshots
+        <Typography variant="h6">
+          {embedded ? 'Daily inventory snapshots' : 'Report actions'}
         </Typography>
         <Box sx={{
           display: 'flex',
@@ -946,7 +949,6 @@ export default memo(function DailyInventorySnapshots() {
             startIcon={<PrintIcon />}
             onClick={handlePrintDetailedInventory}
             disabled={loading || snapshots.length === 0}
-            sx={{ bgcolor: 'maroon', '&:hover': { bgcolor: 'darkred' }, mr: 1 }}
           >
             Print Detailed Report
           </Button>
@@ -955,7 +957,6 @@ export default memo(function DailyInventorySnapshots() {
             startIcon={<PrintIcon />}
             onClick={handlePrintOverallSnapshot}
             disabled={loading || snapshots.length === 0}
-            sx={{ bgcolor: 'maroon', '&:hover': { bgcolor: 'darkred' } }}
           >
             Print Overall Report
           </Button>
@@ -965,7 +966,8 @@ export default memo(function DailyInventorySnapshots() {
       {error && <Alert severity={error.includes('successfully') ? 'success' : 'error'} sx={{ mb: 2 }}>{error}</Alert>}
 
       {/* Filters */}
-      <Paper sx={{ p: 2, mb: 3 }}>
+      <SectionCard sx={{ mb: 3 }}>
+        <Box sx={{ p: 2 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={6} md={3}>
             <TextField
@@ -1015,11 +1017,12 @@ export default memo(function DailyInventorySnapshots() {
             </Button>
           </Grid>
         </Grid>
-      </Paper>
+        </Box>
+      </SectionCard>
 
       {/* Snapshots Table */}
       {snapshots.length > 0 && (
-        <Paper sx={{ p: 2, mb: 3 }}>
+        <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
           <Typography variant="h6" gutterBottom sx={{ color: theme.palette.text.primary }}>
             Daily Inventory Snapshots
           </Typography>

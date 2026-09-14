@@ -14,6 +14,8 @@ import {
   PieChart, Pie, Cell
 } from 'recharts';
 import DailyInventorySnapshots from './dailyInventorySnapshots';
+import PageHeader from '../../Components/PageHeader';
+import { SectionCard } from '../../Components/WorkspaceUI';
 
 export default function Inventory() {
   const theme = useTheme();
@@ -510,16 +512,19 @@ export default function Inventory() {
   return (
     <>
       {/* MAIN INVENTORY VIEW */}
-      <Paper sx={{ p: 3, mb: 3 }}>
+      <PageHeader
+        eyebrow="Reporting"
+        title="Inventory overview"
+        description="Inspect current stock, compare availability, and produce operational reports by laboratory."
+      />
+      <SectionCard sx={{ mb: 3 }}>
+        <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={8}>
-            <Typography variant="h5" fontWeight="bold">Inventory Report</Typography>
-            <Typography color="text.secondary">Summary and current stock across laboratories</Typography>
+          <Grid item xs={12} md={5}>
+            <TextField fullWidth label="Search inventory" placeholder="ID, name, or description" value={query} onChange={e => setQuery(e.target.value)} />
           </Grid>
-
-          <Grid item xs={12} md={4} sx={{ textAlign: 'right' }}>
-            <TextField size="small" placeholder="Search (id, name, description)" value={query} onChange={e => setQuery(e.target.value)} sx={{ mr: 1, minWidth: 220 }} />
-            <FormControl size="small" sx={{ mr: 1, minWidth: 200 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth>
               <InputLabel id="lab-filter-label">Laboratory</InputLabel>
               <Select
                 labelId="lab-filter-label"
@@ -527,56 +532,59 @@ export default function Inventory() {
                 value={selectedLab}
                 onChange={e => setSelectedLab(e.target.value)}
               >
-                <MenuItem value="">All</MenuItem>
+                <MenuItem value="">All laboratories</MenuItem>
                 {laboratories.map(l => (
                   <MenuItem key={l.id} value={l.id}>{l.name}</MenuItem>
                 ))}
               </Select>
             </FormControl>
-            <Button variant="outlined" onClick={exportVisible} sx={{ mr: 1 }}>Export</Button>
-            <Button variant="outlined" onClick={() => handlePrintReport('live')} sx={{ mr: 1 }} startIcon={<PrintIcon />}>Print Live</Button>
-            <Button variant="contained" onClick={() => printVisible()}>
-              Print Detail
-            </Button>
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ display: 'flex', justifyContent: { xs: 'stretch', md: 'flex-end' }, gap: 1, flexWrap: 'wrap', '& .MuiButton-root': { flexGrow: { xs: 1, md: 0 } } }}>
+              <Button variant="outlined" onClick={exportVisible}>Export CSV</Button>
+              <Button variant="outlined" onClick={() => handlePrintReport('live')} startIcon={<PrintIcon />}>Print summary</Button>
+              <Button variant="contained" onClick={() => printVisible()}>Print detail</Button>
+            </Box>
           </Grid>
 
           <Grid item xs={12}>
-            <Tabs value={tabValue} onChange={(e, val) => setTabValue(val)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tabs value={tabValue} onChange={(e, val) => setTabValue(val)} variant="scrollable" scrollButtons="auto" sx={{ borderBottom: 1, borderColor: 'divider' }}>
               <Tab label="Inventory Details" />
               <Tab label="Daily Snapshot Report" />
             </Tabs>
           </Grid>
 
           <Grid item xs={12} md={3}>
-            <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
+            <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
               <Typography variant="subtitle2" color="text.secondary">Items</Typography>
               <Typography variant="h5" fontWeight="700">{totals.total_items}</Typography>
             </Paper>
           </Grid>
           <Grid item xs={12} md={3}>
-            <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
+            <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
               <Typography variant="subtitle2" color="text.secondary">Total Qty</Typography>
               <Typography variant="h5" fontWeight="700">{totals.total_quantity}</Typography>
             </Paper>
           </Grid>
           <Grid item xs={12} md={3}>
-            <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
+            <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
               <Typography variant="subtitle2" color="text.secondary">Available</Typography>
               <Typography variant="h5" sx={{ color: 'success.main', fontWeight: 700 }}>{totals.total_available}</Typography>
             </Paper>
           </Grid>
           <Grid item xs={12} md={3}>
-            <Paper elevation={1} sx={{ p: 2, textAlign: 'center' }}>
+            <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
               <Typography variant="subtitle2" color="text.secondary">Borrowed</Typography>
               <Typography variant="h5" sx={{ color: 'error.main', fontWeight: 700 }}>{totals.total_borrowed}</Typography>
             </Paper>
           </Grid>
         </Grid>
-      </Paper>
+        </Box>
+      </SectionCard>
 
       {/* INVENTORY DETAILS TAB */}
       {tabValue === 0 && (
-      <Paper sx={{ p: 2 }}>
+      <Paper variant="outlined" sx={{ p: { xs: 1, sm: 2 } }}>
         {loading ? (
           <CircularProgress />
         ) : (
@@ -692,7 +700,7 @@ export default function Inventory() {
 
       {/* DAILY SNAPSHOT TAB */}
       {tabValue === 1 && (
-        <DailyInventorySnapshots />
+        <DailyInventorySnapshots embedded />
       )}
     </>
   );

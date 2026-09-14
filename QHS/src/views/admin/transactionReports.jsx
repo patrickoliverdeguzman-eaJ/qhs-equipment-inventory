@@ -12,6 +12,8 @@ import {
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, eachDayOfInterval, eachMonthOfInterval } from 'date-fns';
 import { Download, Print as PrintIcon } from '@mui/icons-material';
 import * as Mui from '../../assets/muiImports';
+import PageHeader from '../../Components/PageHeader';
+import { SectionCard } from '../../Components/WorkspaceUI';
 
 const COLORS = ['#1976d2', '#388e3c', '#d32f2f', '#f57c00', '#7b1fa2', '#00796b'];
 
@@ -722,19 +724,13 @@ export default memo(function TransactionReports() {
   };
 
   return (
-    <Mui.Paper sx={{ p: { xs: 2, sm: 3 } }}>
-      <Box sx={{
-        display: 'flex',
-        flexDirection: { xs: 'column', sm: 'row' },
-        justifyContent: 'space-between',
-        alignItems: { xs: 'stretch', sm: 'center' },
-        gap: 2,
-        mb: 3,
-      }}>
-        <Typography variant="h5" fontWeight="bold">
-          Transaction Reports
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1, '& > button': { flex: { xs: 1, sm: 'initial' } } }}>
+    <Box>
+      <PageHeader
+        eyebrow="Reporting"
+        title="Transaction reports"
+        description="Review borrowing activity by day, month, or year and export the current view."
+        actions={(
+          <>
           <Button
             variant="outlined"
             startIcon={<Download />}
@@ -757,35 +753,36 @@ export default memo(function TransactionReports() {
           >
             Print
           </Button>
-        </Box>
-      </Box>
+          </>
+        )}
+      />
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        <>
+      <SectionCard>
           <Tabs
             value={tabValue}
             onChange={(e, val) => setTabValue(val)}
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
-            sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
+            sx={{ px: { xs: 0.5, sm: 1.5 }, borderBottom: 1, borderColor: 'divider' }}
           >
             <Tab label="Daily Report" />
             <Tab label="Monthly Report" />
             <Tab label="Annual Report" />
           </Tabs>
 
-          {tabValue === 0 && <DailyReport />}
-          {tabValue === 1 && <MonthlyReport />}
-          {tabValue === 2 && <AnnualReport />}
-        </>
-      )}
-    </Mui.Paper>
+          {loading ? (
+            <Box sx={{ display: 'grid', minHeight: 320, placeItems: 'center' }}><CircularProgress /></Box>
+          ) : (
+            <Box sx={{ p: { xs: 1.5, sm: 2.5 } }}>
+              {tabValue === 0 && <DailyReport />}
+              {tabValue === 1 && <MonthlyReport />}
+              {tabValue === 2 && <AnnualReport />}
+            </Box>
+          )}
+      </SectionCard>
+    </Box>
   );
 });

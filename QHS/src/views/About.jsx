@@ -1,294 +1,103 @@
-import React from 'react';
 import {
-  Container,
   Box,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
-  useTheme,
-  useMediaQuery,
-  Stack,
-  Paper,
+  Container,
   Divider,
+  Grid,
+  Paper,
+  Stack,
+  Typography,
 } from '@mui/material';
-import {
-  School as SchoolIcon,
-  Groups as GroupsIcon,
-  EmojiEvents as TargetIcon,
-  Handshake as HandshakeIcon,
-} from '@mui/icons-material';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import HandshakeOutlinedIcon from '@mui/icons-material/HandshakeOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
+import TrackChangesOutlinedIcon from '@mui/icons-material/TrackChangesOutlined';
+
+const values = [
+  { icon: <SchoolOutlinedIcon />, title: 'Learning first', description: 'Equipment should be easy to find and ready when a class or activity needs it.' },
+  { icon: <HandshakeOutlinedIcon />, title: 'Shared responsibility', description: 'Clear ownership and borrowing records help everyone care for school resources.' },
+  { icon: <TrackChangesOutlinedIcon />, title: 'Reliable records', description: 'Accurate status and history support better planning, maintenance, and decisions.' },
+  { icon: <GroupsOutlinedIcon />, title: 'One school community', description: 'Students, custodians, and administrators work from the same trusted information.' },
+];
+
+const capabilities = [
+  'Browse equipment by laboratory and availability',
+  'Submit borrowing requests from one simple cart',
+  'Follow approvals, active loans, and returns',
+  'Maintain a clear unit-level inventory history',
+];
 
 export default function About() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
-  const missions = [
-    {
-      icon: SchoolIcon,
-      title: 'Education',
-      description: 'Empowering students with access to quality laboratory equipment and resources for hands-on learning.',
-    },
-    {
-      icon: HandshakeIcon,
-      title: 'Collaboration',
-      description: 'Fostering cooperation between departments and institutions to share resources efficiently.',
-    },
-    {
-      icon: TargetIcon,
-      title: 'Excellence',
-      description: 'Maintaining high standards in equipment management and laboratory support services.',
-    },
-    {
-      icon: GroupsIcon,
-      title: 'Community',
-      description: 'Building a supportive community of researchers, students, and faculty members.',
-    },
-  ];
-
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
-      {/* Hero Section */}
-      <Box
-        sx={{
-          textAlign: 'center',
-          mb: { xs: 4, md: 8 },
-          py: { xs: 3, md: 5 },
-        }}
-      >
-        <Typography
-          variant="h3"
-          component="h1"
-          sx={{
-            fontWeight: 'bold',
-            color: theme.palette.primary.main,
-            mb: 2,
-          }}
-        >
-          About Us
-        </Typography>
-        <Typography
-          variant="h6"
-          color="textSecondary"
-          sx={{
-            maxWidth: '600px',
-            mx: 'auto',
-            mb: 3,
-          }}
-        >
-          We are dedicated to providing comprehensive laboratory equipment management
-          and support services to educational institutions and research organizations.
-        </Typography>
-      </Box>
+      <Grid container spacing={{ xs: 3, md: 5 }} alignItems="stretch">
+        <Grid item xs={12} md={7}>
+          <Box component="header" sx={{ py: { xs: 1, md: 4 } }}>
+            <Typography variant="overline" color="primary" fontWeight={850} letterSpacing=".14em">About the platform</Typography>
+            <Typography component="h1" variant="h2" sx={{ mt: 1, maxWidth: 720, fontSize: { xs: '2.25rem', sm: '3.25rem', md: '4rem' }, lineHeight: 1.04 }}>
+              Better stewardship of every learning resource.
+            </Typography>
+            <Typography color="text.secondary" sx={{ mt: 2.25, maxWidth: 650, fontSize: { sm: '1.08rem' }, lineHeight: 1.8 }}>
+              QHS Inventory gives Quirino High School one dependable place to organize laboratory equipment, coordinate borrowing, and keep an accountable record of every unit.
+            </Typography>
+          </Box>
+        </Grid>
+        <Grid item xs={12} md={5}>
+          <Paper sx={{ height: '100%', p: { xs: 3, md: 4 }, bgcolor: 'primary.main', color: 'common.white', border: 0 }}>
+            <Typography variant="overline" sx={{ color: 'secondary.light', fontWeight: 850, letterSpacing: '.14em' }}>Our purpose</Typography>
+            <Typography component="h2" variant="h4" sx={{ mt: 1.25 }}>Equipment ready for real learning.</Typography>
+            <Typography sx={{ mt: 2, color: 'rgba(255,255,255,.75)', lineHeight: 1.75 }}>
+              We reduce uncertainty around what the school owns, where it belongs, who is using it, and what needs attention—so staff can spend less time reconciling records and more time supporting students.
+            </Typography>
+            <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,.16)' }} />
+            <Stack direction="row" spacing={1.4} alignItems="center">
+              <Inventory2OutlinedIcon sx={{ color: 'secondary.light' }} />
+              <Typography variant="body2" fontWeight={720}>Built for the daily rhythm of a school laboratory</Typography>
+            </Stack>
+          </Paper>
+        </Grid>
+      </Grid>
 
-      {/* Mission & Vision Section */}
-      <Box sx={{ mb: { xs: 4, md: 8 } }}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
-              <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>
-                Our Mission
-              </Typography>
-              <Typography variant="body1" color="textSecondary" paragraph>
-                To streamline and optimize laboratory equipment management by providing
-                an intuitive platform that facilitates easy borrowing, tracking, and
-                maintenance of laboratory resources.
-              </Typography>
-              <Typography variant="body1" color="textSecondary">
-                We aim to reduce waste, improve accessibility, and ensure that educational
-                institutions can maximize the value of their equipment investments.
-              </Typography>
-            </Paper>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
-              <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>
-                Our Vision
-              </Typography>
-              <Typography variant="body1" color="textSecondary" paragraph>
-                To become the leading laboratory management solution that empowers
-                institutions to make data-driven decisions about their equipment resources.
-              </Typography>
-              <Typography variant="body1" color="textSecondary">
-                We envision a future where laboratory equipment is efficiently utilized,
-                properly maintained, and accessible to all authorized users.
-              </Typography>
-            </Paper>
-          </Grid>
+      <Box component="section" sx={{ mt: { xs: 6, md: 9 } }}>
+        <Typography variant="overline" color="primary" fontWeight={850} letterSpacing=".12em">Principles</Typography>
+        <Typography component="h2" variant="h4" sx={{ mt: 0.5, mb: 3 }}>What guides the experience</Typography>
+        <Grid container columnSpacing={4} rowSpacing={0}>
+          {values.map((item) => (
+            <Grid item xs={12} md={6} key={item.title}>
+              <Stack direction="row" spacing={2} sx={{ py: 3, borderTop: 1, borderColor: 'divider' }}>
+                <Box sx={{ display: 'grid', width: 44, height: 44, flexShrink: 0, placeItems: 'center', borderRadius: 2.25, bgcolor: 'primary.50', color: 'primary.main' }}>{item.icon}</Box>
+                <Box>
+                  <Typography variant="h6">{item.title}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.6, maxWidth: 460, lineHeight: 1.7 }}>{item.description}</Typography>
+                </Box>
+              </Stack>
+            </Grid>
+          ))}
         </Grid>
       </Box>
 
-      {/* Core Values Section */}
-      <Divider sx={{ my: { xs: 3, md: 5 } }} />
-
-      <Box sx={{ mb: { xs: 4, md: 8 } }}>
-        <Typography
-          variant="h4"
-          component="h2"
-          sx={{
-            fontWeight: 'bold',
-            textAlign: 'center',
-            mb: { xs: 3, md: 4 },
-            color: theme.palette.primary.main,
-          }}
-        >
-          Our Core Values
-        </Typography>
-
-        <Grid container spacing={3}>
-          {missions.map((mission, index) => {
-            const IconComponent = mission.icon;
-            return (
-              <Grid item xs={12} sm={6} md={3} key={index}>
-                <Card
-                  sx={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    textAlign: 'center',
-                    p: 2,
-                    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-8px)',
-                      boxShadow: 4,
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      mb: 2,
-                      p: 2,
-                      borderRadius: '50%',
-                      backgroundColor: theme.palette.primary.light,
-                      color: theme.palette.primary.main,
-                    }}
-                  >
-                    <IconComponent sx={{ fontSize: 40 }} />
-                  </Box>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ fontWeight: 'bold' }}
-                  >
-                    {mission.title}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    {mission.description}
-                  </Typography>
-                </Card>
-              </Grid>
-            );
-          })}
-        </Grid>
-      </Box>
-
-      {/* Features Section */}
-      <Divider sx={{ my: { xs: 3, md: 5 } }} />
-
-      <Box sx={{ mb: { xs: 4, md: 8 } }}>
-        <Typography
-          variant="h4"
-          component="h2"
-          sx={{
-            fontWeight: 'bold',
-            textAlign: 'center',
-            mb: { xs: 3, md: 4 },
-            color: theme.palette.primary.main,
-          }}
-        >
-          What We Offer
-        </Typography>
-
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={4}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Equipment Management
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Comprehensive tracking and management of laboratory equipment across departments.
-              </Typography>
-            </Paper>
+      <Paper component="section" variant="outlined" sx={{ mt: { xs: 5, md: 7 }, p: { xs: 3, md: 4.5 } }}>
+        <Grid container spacing={4} alignItems="center">
+          <Grid item xs={12} md={5}>
+            <Typography variant="overline" color="primary" fontWeight={850} letterSpacing=".12em">One connected workflow</Typography>
+            <Typography component="h2" variant="h4" sx={{ mt: 0.5 }}>From discovery to return</Typography>
+            <Typography color="text.secondary" sx={{ mt: 1.25, lineHeight: 1.7 }}>
+              Every part of the system supports the same record, reducing duplicate work and keeping the next action clear.
+            </Typography>
           </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Easy Borrowing System
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Simple and intuitive interface for requesting and borrowing equipment.
-              </Typography>
-            </Paper>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Real-time Tracking
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Monitor equipment status and borrowing history in real-time.
-              </Typography>
-            </Paper>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Maintenance Support
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Track maintenance schedules and equipment health status.
-              </Typography>
-            </Paper>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Analytics & Reports
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Generate detailed reports on equipment utilization and trends.
-              </Typography>
-            </Paper>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={4}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                User Support
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Dedicated support for all users and administrators.
-              </Typography>
-            </Paper>
+          <Grid item xs={12} md={7}>
+            <Stack spacing={1.5}>
+              {capabilities.map((item) => (
+                <Stack direction="row" spacing={1.4} alignItems="center" key={item}>
+                  <CheckCircleOutlineIcon color="success" fontSize="small" />
+                  <Typography>{item}</Typography>
+                </Stack>
+              ))}
+            </Stack>
           </Grid>
         </Grid>
-      </Box>
-
-      {/* Contact Section */}
-      <Divider sx={{ my: { xs: 3, md: 5 } }} />
-
-      <Box sx={{ textAlign: 'center', py: 4 }}>
-        <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>
-          Have Questions?
-        </Typography>
-        <Typography variant="body1" color="textSecondary" paragraph>
-          Contact our support team for more information about our services.
-        </Typography>
-        <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 3 }}>
-          <Typography variant="body2">
-            <strong>Email:</strong> support@qhs.edu
-          </Typography>
-          <Typography variant="body2">
-            <strong>Phone:</strong> (555) 123-4567
-          </Typography>
-        </Stack>
-      </Box>
+      </Paper>
     </Container>
   );
 }

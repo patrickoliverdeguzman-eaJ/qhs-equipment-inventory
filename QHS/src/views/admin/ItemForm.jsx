@@ -1,222 +1,121 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import axiosClient from "../../axiosClient";
-import { useStateContext } from "../../Context/ContextProvider";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Button,
-  FormControlLabel,
-  Radio,
-  RadioGroup,
-  FormLabel,
-  Box,
-  Typography,
-  Alert,
-  CircularProgress,
-  Paper,
-} from "@mui/material";
+  Alert, Box, Button, CircularProgress, Grid, Stack, ToggleButton,
+  ToggleButtonGroup, Typography,
+} from '@mui/material';
+import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import QrCode2OutlinedIcon from '@mui/icons-material/QrCode2Outlined';
+import axiosClient from '../../axiosClient';
+import { useStateContext } from '../../Context/ContextProvider';
+import PageHeader from '../../Components/PageHeader';
+import { SectionCard, SectionHeading } from '../../Components/WorkspaceUI';
+
+const conditions = [
+  { value: 'New', description: 'Unused or newly acquired', tone: 'success' },
+  { value: 'Good', description: 'Fully functional', tone: 'success' },
+  { value: 'Fair', description: 'Usable with visible wear', tone: 'info' },
+  { value: 'Poor', description: 'Limited but still usable', tone: 'warning' },
+  { value: 'Under Repair', description: 'Temporarily unavailable', tone: 'warning' },
+  { value: 'Damaged', description: 'Not safe to issue', tone: 'error' },
+  { value: 'Missing', description: 'Location unknown', tone: 'error' },
+];
 
 export default function ItemForm() {
   const { id, equipmentID } = useParams();
   const navigate = useNavigate();
   const { user } = useStateContext();
   const basePath = user?.role === 'custodian' ? '/custodian' : '/admin';
-
-  const [item, setItem] = useState({
-    id: null,
-    equipment_id: equipmentID ? parseInt(equipmentID) : null,
-    unit_id: "",
-    condition: "Good", // sensible default
-  });
-
-  const [loading, setLoading] = useState(false);
+  const [item, setItem] = useState({ id: null, equipment_id: equipmentID ? Number(equipmentID) : null, unit_id: '', condition: 'Good' });
+  const [loading, setLoading] = useState(Boolean(id));
+  const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (id) {
-      setLoading(true);
-      axiosClient
-        .get(`/item/${id}`)
-        .then(({ data }) => {
-          const i = data.data;
-          setItem({
-            id: i.id,
-            equipment_id: i.equipment_id,
-            unit_id: i.unit_id || "",
-            condition: i.condition || "Good",
-          });
-          setLoading(false);
-        })
-        .catch(() => {
-          setErrors({ general: ["Failed to load unit."] });
-          setLoading(false);
-        });
-    }
+    if (!id) return undefined;
+    let active = true;
+    axiosClient.get(`/item/${id}`)
+      .then(({ data }) => {
+        if (!active) return;
+        const record = data.data;
+        setItem({ id: record.id, equipment_id: record.equipment_id, unit_id: record.unit_id || '', condition: record.condition || 'Good' });
+      })
+      .catch(() => active && setErrors({ general: ['Unit details could not be loaded.'] }))
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
   }, [id]);
 
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrors({});
+  const detailPath = `${basePath}/equipment/info/${equipmentID || item.equipment_id}`;
 
+  const onSubmit = async (event) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setErrors({});
     const payload = item.id
       ? { condition: item.condition || 'Good' }
-      : { equipment_id: parseInt(item.equipment_id), condition: item.condition || 'Good' };
-
+      : { equipment_id: Number(item.equipment_id), condition: item.condition || 'Good' };
     try {
-      if (item.id) {
-        await axiosClient.put(`/item/${item.id}`, payload);
-      } else {
-        await axiosClient.post("/item", payload);
-      }
-      navigate(`${basePath}/equipment/info/${item.equipment_id}`);
-    } catch (err) {
-      console.error("Save failed:", err.response?.data);
-      if (err.response?.status === 422) {
-        const serverErrors = err.response.data.errors || {};
-        setErrors(serverErrors);
-        const firstError = Object.values(serverErrors)[0]?.[0] || "Please fix the errors.";
-        setErrors((prev) => ({ ...prev, general: [firstError] }));
-      } else {
-        setErrors({ general: ["Server error. Please try again."] });
-      }
+      if (item.id) await axiosClient.put(`/item/${item.id}`, payload);
+      else await axiosClient.post('/item', payload);
+      navigate(detailPath);
+    } catch (requestError) {
+      const validation = requestError.response?.data?.errors || {};
+      const first = Object.values(validation)[0]?.[0];
+      setErrors({ ...validation, general: [first || 'The unit could not be saved. Please try again.'] });
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  // Condition options
-  const conditions = [
-    { value: "New",           label: "New",           color: "success" },
-    { value: "Good",          label: "Good",          color: "success" },
-    { value: "Fair",          label: "Fair",          color: "info" },
-    { value: "Poor",          label: "Poor",          color: "warning" },
-    { value: "Damaged",       label: "Damaged",       color: "error" },
-    { value: "Missing",       label: "Missing",       color: "error" },
-    { value: "Under Repair",  label: "Under Repair",  color: "warning" },
-  ];
-
   return (
-    <Box sx={{ maxWidth: 650, mx: "auto", p: 3 }}>
-      <Link to={`${basePath}/equipment/info/${equipmentID || item.equipment_id}`}>
-        <Button
-          variant="outlined"
-          startIcon={<ArrowBackIcon />}
-          sx={{
-            mb: 3,
-            color: "maroon",
-            borderColor: "maroon",
-            "&:hover": {
-              borderColor: "darkred",
-              bgcolor: "rgba(128, 0, 0, 0.04)",
-            },
-          }}
-        >
-          Back to Equipment
-        </Button>
-      </Link>
+    <Box sx={{ maxWidth: 900, mx: 'auto' }}>
+      <PageHeader backTo={detailPath} eyebrow={item.id ? 'Edit tracked unit' : 'Add tracked unit'} title={item.id ? 'Update unit condition' : 'Create an equipment unit'} description="Each physical unit receives its own identifier and condition history." />
+      {errors.general && <Alert severity="error" sx={{ mb: 2.5 }}>{errors.general.join(' ')}</Alert>}
 
-      <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
-        {item.id ? "Edit Unit" : "Add New Unit"}
-      </Typography>
+      {loading ? (
+        <Box sx={{ display: 'grid', minHeight: 320, placeItems: 'center' }}><CircularProgress /></Box>
+      ) : (
+        <Box component="form" onSubmit={onSubmit}>
+          <Grid container spacing={2.5}>
+            <Grid item xs={12} md={4}>
+              <SectionCard sx={{ height: '100%' }}>
+                <SectionHeading icon={<QrCode2OutlinedIcon />} title="Unit identifier" description="Permanent inventory reference" />
+                <Stack alignItems="center" spacing={2} sx={{ p: { xs: 3, md: 4 }, textAlign: 'center' }}>
+                  <Box sx={{ display: 'grid', width: 72, height: 72, placeItems: 'center', borderRadius: 3, bgcolor: 'primary.50', color: 'primary.main' }}><Inventory2OutlinedIcon sx={{ fontSize: 34 }} /></Box>
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" fontWeight={800}>Inventory code</Typography>
+                    <Typography variant="h5" sx={{ mt: 0.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', letterSpacing: '.035em', wordBreak: 'break-word' }}>{item.unit_id || 'Assigned after save'}</Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.65 }}>Unit IDs are generated automatically to keep numbering consistent.</Typography>
+                </Stack>
+              </SectionCard>
+            </Grid>
 
-      <Paper elevation={4} sx={{ p: 5, borderRadius: 3 }}>
-        {errors?.general && (
-          <Alert severity="error" sx={{ mb: 4 }}>
-            {errors.general.map((msg, i) => (
-              <div key={i}>{msg}</div>
-            ))}
-          </Alert>
-        )}
+            <Grid item xs={12} md={8}>
+              <SectionCard>
+                <SectionHeading icon={<BuildOutlinedIcon />} title="Physical condition" description="Choose the option that best describes this unit now." />
+                <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
+                  <ToggleButtonGroup exclusive value={item.condition} onChange={(_, value) => value && setItem((current) => ({ ...current, condition: value }))} aria-label="Unit condition" sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.25, '& .MuiToggleButtonGroup-grouped': { m: 0, border: '1px solid', borderColor: 'divider !important', borderRadius: '10px !important' } }}>
+                    {conditions.map((condition) => (
+                      <ToggleButton key={condition.value} value={condition.value} color={condition.tone} sx={{ display: 'block', minHeight: 74, px: 1.75, py: 1.25, textAlign: 'left' }}>
+                        <Typography variant="body2" fontWeight={800}>{condition.value}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.3, textTransform: 'none', lineHeight: 1.35 }}>{condition.description}</Typography>
+                      </ToggleButton>
+                    ))}
+                  </ToggleButtonGroup>
+                  {errors.condition && <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1 }}>{errors.condition[0]}</Typography>}
+                </Box>
+              </SectionCard>
+            </Grid>
+          </Grid>
 
-        {loading ? (
-          <Box textAlign="center" my={8}>
-            <CircularProgress size={70} />
-          </Box>
-        ) : (
-          <Box component="form" onSubmit={onSubmit}>
-            {/* Unit ID */}
-            <Box mb={5}>
-              <FormLabel component="legend" sx={{ fontWeight: "bold", fontSize: "1.1rem" }}>
-                Unit ID
-              </FormLabel>
-              <Box
-                sx={{
-                  mt: 2,
-                  p: 3,
-                  bgcolor: "#f8f9fa",
-                  border: "2px dashed #ccc",
-                  borderRadius: 2,
-                  textAlign: "center",
-                  fontFamily: "monospace",
-                  fontSize: "1.4rem",
-                  fontWeight: "bold",
-                  color: item.unit_id ? "primary.main" : "text.disabled",
-                }}
-              >
-                {item.unit_id || "Will be auto-generated on save"}
-              </Box>
-            </Box>
-
-            {/* Condition */}
-            <Box mb={6}>
-              <FormLabel component="legend" sx={{ fontWeight: "bold", fontSize: "1.1rem", mb: 2 }}>
-                Condition
-              </FormLabel>
-              <RadioGroup
-                value={item.condition || 'Good'}
-                onChange={(e) => setItem({ ...item, condition: e.target.value })}
-              >
-                {conditions.map(({ value, label, color, sx }) => (
-                  <FormControlLabel
-                    key={value}
-                    value={value}
-                    control={<Radio color={color} />}
-                    label={label}
-                    sx={{
-                      mb: 1.5,
-                      py: 0.5,
-                      px: 2,
-                      borderRadius: 2,
-                      bgcolor: item.condition === value ? `${color}.50` : "transparent",
-                      "& .MuiFormControlLabel-label": {
-                        fontWeight: item.condition === value ? "bold" : "medium",
-                        color: item.condition === value ? `${color}.main` : "inherit",
-                      },
-                      ...sx,
-                    }}
-                  />
-                ))}
-              </RadioGroup>
-
-              {errors.condition && (
-                <Typography color="error" variant="body2" sx={{ mt: 1 }}>
-                  {errors.condition[0]}
-                </Typography>
-              )}
-            </Box>
-
-            {/* Submit */}
-            <Button
-              type="submit"
-              variant="contained"
-              size="large"
-              disabled={loading}
-              fullWidth
-              sx={{
-                py: 2,
-                fontSize: "1.2rem",
-                fontWeight: "bold",
-                bgcolor: "maroon",
-                "&:hover": { bgcolor: "darkred" },
-                borderRadius: 3,
-              }}
-            >
-              {loading ? <CircularProgress size={32} color="inherit" /> : "Save Unit"}
-            </Button>
-          </Box>
-        )}
-      </Paper>
+          <Stack direction={{ xs: 'column-reverse', sm: 'row' }} justifyContent="flex-end" spacing={1} sx={{ mt: 2.5 }}>
+            <Button color="inherit" onClick={() => navigate(detailPath)} disabled={submitting}>Cancel</Button>
+            <Button type="submit" variant="contained" disabled={submitting}>{submitting ? <CircularProgress size={21} color="inherit" /> : item.id ? 'Save condition' : 'Create unit'}</Button>
+          </Stack>
+        </Box>
+      )}
     </Box>
   );
 }

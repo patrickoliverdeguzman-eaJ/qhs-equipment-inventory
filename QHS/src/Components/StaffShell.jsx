@@ -29,7 +29,7 @@ import { assetUrl } from '../axiosClient';
 import { getInitials } from '../utils';
 import qhsMark from '../assets/qhs-mark.svg';
 
-const drawerWidth = 272;
+const drawerWidth = 264;
 
 function StaffClock() {
   const [now, setNow] = useState(() => new Date());
@@ -69,19 +69,21 @@ export default function StaffShell({
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Stack direction="row" alignItems="center" spacing={1.4} sx={{ minHeight: 76, px: 2.25 }}>
-        <Box component="img" src={qhsMark} alt="" sx={{ width: 42, height: 42, flexShrink: 0 }} />
+      <Stack direction="row" alignItems="center" spacing={1.35} sx={{ minHeight: 76, px: 2.25 }}>
+        <Box sx={{ display: 'grid', width: 42, height: 42, placeItems: 'center', borderRadius: 2.25, bgcolor: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.1)', flexShrink: 0 }}>
+          <Box component="img" src={qhsMark} alt="" sx={{ width: 34, height: 34 }} />
+        </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography color="common.white" fontWeight={800} fontSize="0.95rem" lineHeight={1.15}>
-            QHS Inventory
+          <Typography color="common.white" fontWeight={800} fontSize="0.93rem" lineHeight={1.15}>
+            Quirino High School
           </Typography>
           <Typography sx={{ color: 'rgba(255,255,255,.62)', fontSize: '0.72rem' }}>
-            Equipment management
+            Equipment inventory
           </Typography>
         </Box>
       </Stack>
 
-      <Box sx={{ mx: 1.5, mb: 1.5, p: 1.35, borderRadius: 2.5, bgcolor: 'rgba(255,255,255,.065)', border: '1px solid rgba(255,255,255,.08)' }}>
+      <Box sx={{ mx: 1.25, mb: 1.4, p: 1.4, borderRadius: 2.25, bgcolor: 'rgba(255,255,255,.055)', border: '1px solid rgba(255,255,255,.075)' }}>
         <Stack direction="row" spacing={1.25} alignItems="center">
           <Avatar
             src={user?.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined}
@@ -103,7 +105,18 @@ export default function StaffShell({
         </Stack>
       </Box>
 
-      <Box component="nav" aria-label={`${roleLabel} navigation`} sx={{ flex: 1, overflowY: 'auto', px: 1.25, pb: 1 }}>
+      <Box
+        component="nav"
+        aria-label={`${roleLabel} navigation`}
+        sx={{
+          flex: 1,
+          overflowY: 'auto',
+          px: 1.25,
+          pb: 1,
+          scrollbarWidth: 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+        }}
+      >
         {navSections.map((section) => (
           <Box key={section.label} sx={{ mb: 1.4 }}>
             <Typography
@@ -125,14 +138,16 @@ export default function StaffShell({
                       onClick={() => setMobileOpen(false)}
                       sx={{
                         minHeight: 43,
-                        borderRadius: 2.25,
+                        borderRadius: 1.75,
                         color: 'rgba(255,255,255,.76)',
+                        position: 'relative',
                         '& .MuiListItemIcon-root': { color: 'inherit' },
                         '&:hover': { bgcolor: 'rgba(255,255,255,.075)', color: 'common.white' },
                         '&.Mui-selected': {
-                          bgcolor: 'rgba(232,188,114,.15)',
-                          color: '#F4CE8D',
-                          '&:hover': { bgcolor: 'rgba(232,188,114,.2)' },
+                          bgcolor: 'rgba(255,255,255,.1)',
+                          color: '#F5D49B',
+                          '&::before': { position: 'absolute', left: 0, top: 10, bottom: 10, width: 3, borderRadius: '0 4px 4px 0', bgcolor: '#E8BC72', content: '""' },
+                          '&:hover': { bgcolor: 'rgba(255,255,255,.13)' },
                         },
                         '&.Mui-disabled': { color: 'rgba(255,255,255,.28)' },
                       }}
@@ -153,7 +168,7 @@ export default function StaffShell({
         <ListItem disablePadding>
           <ListItemButton
             onClick={onLogout}
-            sx={{ minHeight: 44, borderRadius: 2.25, color: 'rgba(255,255,255,.75)', '&:hover': { bgcolor: 'rgba(255,255,255,.075)', color: 'common.white' } }}
+            sx={{ minHeight: 44, borderRadius: 1.75, color: 'rgba(255,255,255,.75)', '&:hover': { bgcolor: 'rgba(255,255,255,.075)', color: 'common.white' } }}
           >
             <ListItemIcon sx={{ minWidth: 38, color: 'inherit' }}><LogoutIcon /></ListItemIcon>
             <ListItemText primary="Sign out" primaryTypographyProps={{ fontSize: '0.86rem', fontWeight: 650 }} />
@@ -173,7 +188,7 @@ export default function StaffShell({
           sx={{
             width: { md: `calc(100% - ${drawerWidth}px)` },
             ml: { md: `${drawerWidth}px` },
-            bgcolor: 'rgba(255,255,255,.9)',
+            bgcolor: 'rgba(250,249,247,.92)',
             color: 'text.primary',
             backdropFilter: 'blur(14px)',
             zIndex: (value) => value.zIndex.drawer - 1,
@@ -220,8 +235,8 @@ export default function StaffShell({
                 width: drawerWidth,
                 boxSizing: 'border-box',
                 border: 0,
-                bgcolor: '#3F111E',
-                backgroundImage: 'linear-gradient(180deg, #4C1424 0%, #321019 100%)',
+                bgcolor: '#421321',
+                backgroundImage: 'none',
                 color: 'common.white',
               },
             }}
