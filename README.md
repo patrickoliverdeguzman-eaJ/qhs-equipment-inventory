@@ -1,6 +1,6 @@
 # QHS Equipment Inventory
 
-Quirino High School's equipment inventory and borrowing application. Laravel 12 provides the API, authorization, scheduled snapshots, and private Reverb events; React 18 and Vite provide the role-specific user interface.
+Quirino High School's equipment inventory and borrowing application. Laravel 12 provides the API, authorization, scheduled snapshots, and private Reverb events; React 18, TypeScript, and Vite provide the role-specific user interface.
 
 ## Major features
 
@@ -16,7 +16,7 @@ Quirino High School's equipment inventory and borrowing application. Laravel 12 
 - `app/Http/Controllers` keeps HTTP concerns thin.
 - `app/Services/TransactionService.php` owns atomic borrow, assignment, accept, reject, return, and release workflows.
 - Policies plus `role` and `active` middleware enforce admin, custodian-laboratory, and borrower boundaries.
-- `QHS/src` is the React application. Vite emits production assets to ignored `public/app`; Laravel serves its index for client-side routes.
+- `QHS/src` is the React and TypeScript application. Strictly typed API boundaries cover authentication, navigation, student workflows, and core administration while the remaining reporting modules migrate incrementally. Vite emits production assets to ignored `public/app`; Laravel serves its index for client-side routes.
 - Reverb uses authenticated private channels per user, laboratory, and administrator. Ten-second polling remains a resilience fallback.
 
 ## Requirements
@@ -81,6 +81,7 @@ The free Render plans are suitable for previews: the web service sleeps when idl
 php artisan test
 vendor/bin/pint --test
 npm --prefix QHS run lint
+npm --prefix QHS run typecheck
 npm --prefix QHS run build
 composer audit
 npm --prefix QHS audit --omit=dev
