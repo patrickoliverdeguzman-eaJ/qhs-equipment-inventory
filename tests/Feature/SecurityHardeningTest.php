@@ -119,6 +119,25 @@ class SecurityHardeningTest extends TestCase
         $this->assertStringContainsString("script-src 'self'", $policy);
         $this->assertStringContainsString("object-src 'none'", $policy);
         $response->assertHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
+        $response->assertHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        $response->assertHeader('X-Permitted-Cross-Domain-Policies', 'none');
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+    }
+
+    public function test_production_policy_upgrades_mixed_content_and_disallows_insecure_websockets(): void
+    {
+        $originalEnvironment = app()->environment();
+
+        try {
+            app()->detectEnvironment(fn (): string => 'production');
+            $policy = (string) $this->get('/auth')->headers->get('Content-Security-Policy');
+
+            $this->assertStringContainsString('upgrade-insecure-requests', $policy);
+            $this->assertStringContainsString("connect-src 'self' https: wss:", $policy);
+            $this->assertStringNotContainsString(' ws:', $policy);
+        } finally {
+            app()->detectEnvironment(fn (): string => $originalEnvironment);
+        }
     }
 
     public function test_production_refuses_to_write_sensitive_account_links_to_log_mail(): void

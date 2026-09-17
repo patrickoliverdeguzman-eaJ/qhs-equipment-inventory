@@ -34,4 +34,25 @@ class AdminBootstrapCommandTest extends TestCase
         $this->assertNotNull($admin->email_verified_at);
         $this->assertTrue(Hash::check($password, $admin->password));
     }
+
+    public function test_create_only_bootstrap_does_not_modify_an_existing_account(): void
+    {
+        $existing = User::factory()->create([
+            'email' => 'existing@example.com',
+            'role' => 'user',
+            'isActive' => false,
+            'email_verified_at' => null,
+        ]);
+
+        $this->artisan('app:create-admin', [
+            'email' => $existing->email,
+            '--create-only' => true,
+        ])->assertSuccessful();
+
+        $existing->refresh();
+
+        $this->assertSame('user', $existing->role);
+        $this->assertFalse($existing->isActive);
+        $this->assertNull($existing->email_verified_at);
+    }
 }

@@ -14,9 +14,12 @@ class SecurityHeaders
 
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
+        $response->headers->set('X-Permitted-Cross-Domain-Policies', 'none');
+        $response->headers->set('X-Robots-Tag', 'noindex, nofollow, noarchive');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
-        $response->headers->set('Content-Security-Policy', implode('; ', [
+
+        $contentSecurityPolicy = [
             "default-src 'self'",
             "base-uri 'self'",
             "object-src 'none'",
@@ -28,8 +31,21 @@ class SecurityHeaders
             "font-src 'self' data:",
             "media-src 'self' blob:",
             "worker-src 'self' blob:",
-            "connect-src 'self' https: wss: ws:",
-        ]));
+            app()->isProduction()
+                ? "connect-src 'self' https: wss:"
+                : "connect-src 'self' https: wss: ws:",
+        ];
+
+        if (app()->isProduction()) {
+            $contentSecurityPolicy[] = 'upgrade-insecure-requests';
+        }
+
+        $response->headers->set('Content-Security-Policy', implode('; ', $contentSecurityPolicy));
+
+        if ($request->is('api/*', 'sanctum/*', 'broadcasting/*')) {
+            $response->headers->set('Cache-Control', 'no-store, private');
+            $response->headers->set('Pragma', 'no-cache');
+        }
 
         if ($request->isSecure() && app()->isProduction()) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

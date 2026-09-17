@@ -30,6 +30,7 @@ ENV APACHE_DOCUMENT_ROOT=/var/www/html/public \
     LOG_CHANNEL=stderr
 
 COPY deploy/apache.conf /etc/apache2/conf-available/qhs.conf
+COPY deploy/php-production.ini /usr/local/etc/php/conf.d/zz-qhs-production.ini
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -48,7 +49,15 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
-COPY . .
+COPY artisan composer.json composer.lock ./
+COPY app ./app
+COPY bootstrap ./bootstrap
+COPY config ./config
+COPY database ./database
+COPY public ./public
+COPY resources ./resources
+COPY routes ./routes
+COPY storage ./storage
 COPY --from=dependencies /app/vendor ./vendor
 COPY --from=frontend /app/public/app ./public/app
 COPY deploy/entrypoint.sh /usr/local/bin/qhs-entrypoint

@@ -15,7 +15,8 @@ class CreateAdmin extends Command
     protected $signature = 'app:create-admin
                             {email : The administrator email address}
                             {--name= : Administrator name for non-interactive creation}
-                            {--password-env= : Environment variable containing the initial password}';
+                            {--password-env= : Environment variable containing the initial password}
+                            {--create-only : Leave an existing account unchanged}';
 
     protected $description = 'Create an administrator or promote an existing account';
 
@@ -32,6 +33,12 @@ class CreateAdmin extends Command
 
         $user = User::where('email', $email)->first();
         if ($user) {
+            if ($this->option('create-only')) {
+                $this->info("Administrator bootstrap skipped because {$email} already exists.");
+
+                return self::SUCCESS;
+            }
+
             $user->update([
                 'role' => 'admin',
                 'isActive' => true,

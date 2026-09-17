@@ -23,6 +23,8 @@ services:
         value: https://qhs-equipment-inventory.onrender.com
       - key: FRONTEND_URL
         value: https://qhs-equipment-inventory.onrender.com
+      - key: BOOTSTRAP_ADMIN_ENABLED
+        value: "false"
       - key: SANCTUM_STATEFUL_DOMAINS
         value: qhs-equipment-inventory.onrender.com
       - key: DB_CONNECTION

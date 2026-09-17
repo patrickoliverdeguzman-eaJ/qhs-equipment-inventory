@@ -79,7 +79,9 @@ The complete [system workflow and function reference](docs/SYSTEM_WORKFLOW_AND_F
 
 The repository includes a production Docker image and `render.yaml` Blueprint for a single-service HTTPS deployment backed by Render Postgres. Deploy the Blueprint from the repository root; Render supplies `APP_KEY`, `DB_URL`, and its public URL automatically. The container runs migrations and Laravel cache warm-up before Apache starts.
 
-The free Render plans are suitable for previews: the web service sleeps when idle, uploaded files use ephemeral local storage, and the free PostgreSQL database expires after 30 days. Use paid persistent storage and complete the required SMTP settings for a permanent production installation. Reverb is disabled in the one-port preview deployment; the interface continues to work using normal API refreshes.
+The free Render plans are suitable for previews: the web service sleeps when idle, uploaded files use ephemeral local storage, and the free PostgreSQL database expires after 30 days. Use a persistent database and object storage before treating the deployment as the permanent system of record, and complete the required SMTP settings before enabling public registration or recovery. Reverb is disabled in the one-port preview deployment; the interface continues to work using normal API refreshes.
+
+The container refuses to boot in production when debug mode is enabled or the public URL is not HTTPS. It also excludes local SQLite files, tests, frontend sources, and internal documentation from the runtime image. Initial administrator creation is an explicit one-time operation: set `BOOTSTRAP_ADMIN_ENABLED=true` together with the email and password variables for the first deploy, then remove all three bootstrap variables.
 
 ## Verification
 
