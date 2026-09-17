@@ -40,13 +40,22 @@ interface TransactionNotification {
   status?: string;
   created_at?: string;
   accepted_at?: string | null;
+  approved_at?: string | null;
+  issued_at?: string | null;
+  updated_at?: string | null;
   returned_at?: string | null;
   rejected_at?: string | null;
   accepted_by_name?: string | null;
+  approved_by_name?: string | null;
+  issued_by_name?: string | null;
   returned_by_name?: string | null;
   rejected_by_name?: string | null;
   laboratory?: Pick<Laboratory, 'name'> | null;
   equipment?: unknown[];
+  lifecycle_stage?: string;
+  is_overdue?: boolean;
+  returned_count?: number;
+  issued_count?: number;
 }
 
 type NotificationTone = 'warning' | 'info' | 'success' | 'error';
@@ -94,7 +103,8 @@ export default function UserLayout() {
           const sevenDaysAgo = new Date(Date.now() - (7 * 24 * 60 * 60 * 1000));
           const updates = rows.filter((item) => {
             const status = item.status?.toLowerCase();
-            if (status === 'borrowed' && item.accepted_at) return new Date(item.accepted_at) > sevenDaysAgo;
+            if (status === 'approved' && (item.approved_at || item.accepted_at)) return new Date(item.approved_at || item.accepted_at || 0) > sevenDaysAgo;
+            if (status === 'borrowed' && (item.updated_at || item.issued_at)) return new Date(item.updated_at || item.issued_at || 0) > sevenDaysAgo;
             if (status === 'returned' && item.returned_at) return new Date(item.returned_at) > sevenDaysAgo;
             if (status === 'rejected' && item.rejected_at) return new Date(item.rejected_at) > sevenDaysAgo;
             return false;
@@ -353,12 +363,19 @@ export default function UserLayout() {
                   <Typography variant="overline" color="text.secondary" sx={{ display: 'block', px: 2.25, pt: 1.5, pb: 0.5, fontWeight: 800 }}>Recent decisions</Typography>
                   {recentUpdates.map((item) => {
                     const status = item.status?.toLowerCase();
-                    const accepted = status === 'borrowed';
+                    const approved = status === 'approved';
+                    const borrowed = status === 'borrowed';
                     const returned = status === 'returned';
-                    const actor = accepted ? item.accepted_by_name : returned ? item.returned_by_name : item.rejected_by_name;
-                    const when = accepted ? item.accepted_at : returned ? item.returned_at : item.rejected_at;
+                    const partial = item.lifecycle_stage === 'partially_returned';
+                    const actor = approved ? (item.approved_by_name || item.accepted_by_name) : borrowed ? item.issued_by_name : returned ? item.returned_by_name : item.rejected_by_name;
+                    const when = approved ? (item.approved_at || item.accepted_at) : borrowed ? (item.updated_at || item.issued_at) : returned ? item.returned_at : item.rejected_at;
+                    const title = approved
+                      ? `Request #${item.id} is ready for pickup`
+                      : borrowed
+                        ? `Request #${item.id} ${partial ? `${item.returned_count || 0}/${item.issued_count || 0} units returned` : item.is_overdue ? 'is overdue' : 'was issued'}`
+                        : returned ? `Request #${item.id} was fully returned` : `Request #${item.id} was rejected`;
                     return (
-                      <NotificationRow key={`u-${item.id}`} icon={accepted ? <LocalShippingIcon fontSize="small" /> : returned ? <AssignmentReturnIcon fontSize="small" /> : <CancelIcon fontSize="small" />} tone={accepted ? 'info' : returned ? 'success' : 'error'} title={`Request #${item.id} ${accepted ? 'approved' : returned ? 'returned' : 'rejected'}`} detail={`${item.laboratory?.name || 'Laboratory'}${actor ? ` · ${actor}` : ''}`} when={formatWhen(when)} onClick={goToHistory} />
+                      <NotificationRow key={`u-${item.id}`} icon={approved || borrowed ? <LocalShippingIcon fontSize="small" /> : returned ? <AssignmentReturnIcon fontSize="small" /> : <CancelIcon fontSize="small" />} tone={item.is_overdue ? 'error' : approved || borrowed ? 'info' : returned ? 'success' : 'error'} title={title} detail={`${item.laboratory?.name || 'Laboratory'}${actor ? ` · ${actor}` : ''}`} when={formatWhen(when)} onClick={goToHistory} />
                     );
                   })}
                 </Box>

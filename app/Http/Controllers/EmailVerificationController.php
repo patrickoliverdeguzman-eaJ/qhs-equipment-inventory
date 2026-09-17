@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\VerifyEmailMail;
 use App\Models\User;
+use App\Support\SensitiveMailTransport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -38,6 +39,7 @@ class EmailVerificationController extends Controller
 
         if ($user && ! $user->email_verified_at) {
             try {
+                SensitiveMailTransport::assertSafe();
                 $url = URL::temporarySignedRoute(
                     'verification.verify',
                     now()->addHours(24),

@@ -66,7 +66,7 @@ class TransactionService
     {
         $allowed = ['notes'];
 
-        if ($transaction->status === 'borrowed') {
+        if (in_array($transaction->status, ['approved', 'borrowed'], true)) {
             $allowed[] = 'return_date';
 
             if (! empty($data['return_date']) && $data['return_date'] < $transaction->borrow_date) {
@@ -81,9 +81,9 @@ class TransactionService
         return $this->publish($transaction);
     }
 
-    public function accept(Transaction $transaction, User $actor): Transaction
+    public function accept(Transaction $transaction, User $actor, ?string $returnDate = null): Transaction
     {
-        $accepted = DB::transaction(function () use ($transaction, $actor) {
+        $accepted = DB::transaction(function () use ($transaction, $actor, $returnDate) {
             $locked = Transaction::query()->lockForUpdate()->findOrFail($transaction->id);
 
             if ($locked->status !== 'pending') {
@@ -100,9 +100,19 @@ class TransactionService
                 $this->reserveRequestedItems($locked, $requested);
             }
 
+            $dueDate = $returnDate ?: $locked->return_date;
+
+            if (! $dueDate) {
+                throw ValidationException::withMessages([
+                    'return_date' => ['A due date is required before approving a request.'],
+                ]);
+            }
+
             $locked->update([
-                'status' => 'borrowed',
+                'status' => 'approved',
+                'return_date' => $dueDate,
                 'accepted_at' => now(),
+                'accepted_by_id' => $actor->id,
                 'accepted_by_name' => $actor->name,
             ]);
 
@@ -127,6 +137,7 @@ class TransactionService
             $locked->update([
                 'status' => 'rejected',
                 'rejected_at' => now(),
+                'rejected_by_id' => $actor->id,
                 'rejected_by_name' => $actor->name,
                 'rejection_reason' => $reason,
             ]);
@@ -135,30 +146,6 @@ class TransactionService
         });
 
         return $this->publish($declined);
-    }
-
-    public function markReturned(Transaction $transaction, User $actor): Transaction
-    {
-        $returned = DB::transaction(function () use ($transaction, $actor) {
-            $locked = Transaction::query()->lockForUpdate()->findOrFail($transaction->id);
-
-            if ($locked->status !== 'borrowed') {
-                throw ValidationException::withMessages([
-                    'status' => ['Only borrowed requests can be returned.'],
-                ]);
-            }
-
-            $this->releaseItems($locked);
-            $locked->update([
-                'status' => 'returned',
-                'returned_at' => now(),
-                'returned_by_name' => $actor->name,
-            ]);
-
-            return $locked;
-        });
-
-        return $this->publish($returned);
     }
 
     public function replaceAssignedItems(Transaction $transaction, array $assignments): Transaction

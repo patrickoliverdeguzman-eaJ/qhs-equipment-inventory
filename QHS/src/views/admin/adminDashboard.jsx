@@ -52,6 +52,10 @@ import {
   Dashboard as DashboardIcon,
   Visibility,
   SwapHoriz,
+  HourglassTop,
+  WarningAmber,
+  AssignmentReturn,
+  Construction,
 } from "@mui/icons-material";
 import { useStateContext } from "../../Context/ContextProvider";
 import axiosClient from "../../axiosClient";
@@ -129,6 +133,14 @@ export default function AdminDashboard() {
   const [liveStats, setLiveStats] = useState({ total_items: 0, total_quantity: 0, total_available: 0, total_borrowed: 0, unavailable: 0 });
   const [selectedLabIdForInventory, setSelectedLabIdForInventory] = useState("all");
   const [transactionsToday, setTransactionsToday] = useState(0);
+  const [workflowSummary, setWorkflowSummary] = useState({
+    approved_requests: 0,
+    overdue_requests: 0,
+    partial_returns: 0,
+    maintenance_open: 0,
+    maintenance_overdue: 0,
+    maintenance_due_soon: 0,
+  });
 
   // Modal for viewing transaction items
   const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -137,8 +149,12 @@ export default function AdminDashboard() {
   const fetchRecentTransactions = useCallback(async () => {
     setLoadingTransactions(true);
     try {
-      const { data } = await axiosClient.get("/transactions?per_page=5");
+      const [{ data }, { data: summary }] = await Promise.all([
+        axiosClient.get("/transactions?per_page=5"),
+        axiosClient.get('/admin/dashboard/summary'),
+      ]);
       setTransactions(data.data || []);
+      setWorkflowSummary(summary);
       setLastRefreshed(new Date());
     } catch (err) {
       console.error("Failed to load recent transactions", err);
@@ -173,8 +189,18 @@ export default function AdminDashboard() {
       case 'user_deleted': return `${u} deleted user #${m.user_id || ''}`;
       case 'transaction_created': return `${u} created borrow request #${m.transaction_id || ''}`;
       case 'transaction_accepted': return `${u} accepted request #${m.transaction_id || ''}`;
+      case 'transaction_approved': return `${u} approved request #${m.transaction_id || ''} for pickup`;
+      case 'transaction_issued': return `${u} issued equipment for request #${m.transaction_id || ''}`;
+      case 'transaction_items_returned': return `${u} returned ${m.returned_count || 0} unit(s) for request #${m.transaction_id || ''}`;
+      case 'transaction_damaged_return': return `${u} recorded a damaged return for request #${m.transaction_id || ''}`;
+      case 'transaction_missing_unit': return `${u} recorded a missing unit for request #${m.transaction_id || ''}`;
       case 'transaction_declined': return `${u} declined request #${m.transaction_id || ''}`;
       case 'transaction_returned': return `${u} marked returned #${m.transaction_id || ''}`;
+      case 'maintenance_created': return `${u} opened maintenance work order #${m.maintenance_id || ''}`;
+      case 'maintenance_updated': return `${u} updated maintenance work order #${m.maintenance_id || ''}`;
+      case 'maintenance_started': return `${u} started maintenance work order #${m.maintenance_id || ''}`;
+      case 'maintenance_completed': return `${u} completed maintenance work order #${m.maintenance_id || ''}`;
+      case 'maintenance_cancelled': return `${u} cancelled maintenance work order #${m.maintenance_id || ''}`;
       default:
         // Fallback: middleware-style entries like "POST api/...
         return `${u} — ${log.action}`;
@@ -500,19 +526,25 @@ export default function AdminDashboard() {
     setSelectedTransaction(trx);
   };
 
-  const getActionText = (status) => {
-    switch (status) {
+  const getActionText = (transaction) => {
+    if (transaction.lifecycle_stage === 'partially_returned') return `Partial ${transaction.returned_count}/${transaction.issued_count}`;
+    if (transaction.is_overdue) return 'Overdue';
+    switch (transaction.status) {
       case "pending": return "Requested";
+      case "approved": return "Awaiting pickup";
       case "borrowed": return "Borrowed";
       case "returned": return "Returned";
       case "rejected": return "Rejected";
-      default: return status;
+      default: return transaction.status;
     }
   };
 
-  const getActionColor = (status) => {
-    switch (status) {
+  const getActionColor = (transaction) => {
+    if (transaction.is_overdue) return 'error';
+    if (transaction.lifecycle_stage === 'partially_returned') return 'warning';
+    switch (transaction.status) {
       case "pending": return "warning";
+      case "approved": return "secondary";
       case "borrowed": return "success";
       case "returned": return "info";
       case "rejected": return "error";
@@ -589,6 +621,37 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </Grid>
+      </Grid>
+
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 4 }}>
+        {[
+          { label: 'Awaiting pickup', value: workflowSummary.approved_requests || 0, color: 'info.main', icon: <HourglassTop /> },
+          { label: 'Overdue requests', value: workflowSummary.overdue_requests || 0, color: 'error.main', icon: <WarningAmber /> },
+          { label: 'Partially returned', value: workflowSummary.partial_returns || 0, color: 'warning.main', icon: <AssignmentReturn /> },
+          {
+            label: 'Open maintenance',
+            value: workflowSummary.maintenance_open || 0,
+            helper: `${workflowSummary.maintenance_overdue || 0} overdue • ${workflowSummary.maintenance_due_soon || 0} due soon`,
+            color: 'secondary.main',
+            icon: <Construction />,
+            onClick: () => navigate('/admin/maintenance'),
+          },
+        ].map((item) => (
+          <Grid item xs={12} sm={6} lg={3} key={item.label}>
+            <Card
+              variant="outlined"
+              onClick={item.onClick}
+              sx={item.onClick ? { cursor: 'pointer', '&:hover': { borderColor: item.color, boxShadow: 2 } } : undefined}
+            ><CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ display: 'grid', placeItems: 'center', width: 42, height: 42, borderRadius: 2, bgcolor: item.color, color: 'common.white' }}>{item.icon}</Box>
+              <Box>
+                <Typography variant="h5">{item.value}</Typography>
+                <Typography variant="body2" color="text.secondary">{item.label}</Typography>
+                {item.helper && <Typography variant="caption" color="text.secondary">{item.helper}</Typography>}
+              </Box>
+            </CardContent></Card>
+          </Grid>
+        ))}
       </Grid>
 
       {/* LIVE INVENTORY OVERVIEW */}
@@ -869,7 +932,7 @@ export default function AdminDashboard() {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Chip label={getActionText(trx.status)} size="small" color={getActionColor(trx.status)} />
+                            <Chip label={getActionText(trx)} size="small" color={getActionColor(trx)} />
                           </TableCell>
                           <TableCell>
                             <Button

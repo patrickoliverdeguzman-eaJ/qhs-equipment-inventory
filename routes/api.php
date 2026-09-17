@@ -10,20 +10,20 @@ use App\Http\Controllers\EquipmentImportController;
 use App\Http\Controllers\EquipmentItemController;
 use App\Http\Controllers\InventorySnapshotController;
 use App\Http\Controllers\LaboratoryController;
+use App\Http\Controllers\MaintenanceWorkOrderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('throttle:auth')->group(function () {
-    Route::post('register', [AuthController::class, 'register']);
-    Route::post('login', [AuthController::class, 'login']);
-    Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
-    Route::post('reset-password', [AuthController::class, 'resetPassword']);
-    Route::post('email/resend', [EmailVerificationController::class, 'resendVerificationEmail'])
-        ->name('resend-verification-email');
-});
+Route::post('register', [AuthController::class, 'register'])->middleware('throttle:registration');
+Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
+Route::post('forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:password-recovery');
+Route::post('reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:password-reset');
+Route::post('email/resend', [EmailVerificationController::class, 'resendVerificationEmail'])
+    ->middleware('throttle:verification-resend')
+    ->name('resend-verification-email');
 
 Route::get('email/verify/{id}', [EmailVerificationController::class, 'verifySigned'])
     ->middleware(['signed', 'throttle:verification'])
@@ -52,8 +52,9 @@ Route::middleware(['auth:sanctum', 'abilities:app:use', 'active'])->group(functi
     Route::middleware('role:admin,custodian')->group(function () {
         Route::get('users', [UserController::class, 'index']);
         Route::post('equipment', [EquipmentController::class, 'store']);
-        Route::match(['put', 'patch', 'post'], 'equipment/{equipment}', [EquipmentController::class, 'update']);
-        Route::post('equipment/import', [EquipmentImportController::class, 'import']);
+        Route::post('equipment/import', [EquipmentImportController::class, 'import'])->middleware('throttle:imports');
+        Route::match(['put', 'patch', 'post'], 'equipment/{equipment}', [EquipmentController::class, 'update'])
+            ->whereNumber('equipment');
 
         Route::post('item', [EquipmentItemController::class, 'store']);
         Route::get('item/{item}', [EquipmentItemController::class, 'show'])->whereNumber('item');
@@ -61,9 +62,18 @@ Route::middleware(['auth:sanctum', 'abilities:app:use', 'active'])->group(functi
         Route::get('item/{unitId}/history', [TransactionController::class, 'itemHistory']);
 
         Route::post('transactions/{transaction}/accept', [TransactionController::class, 'accept']);
+        Route::post('transactions/{transaction}/issue', [TransactionController::class, 'issue']);
         Route::post('transactions/{transaction}/decline', [TransactionController::class, 'decline']);
+        Route::post('transactions/{transaction}/return-items', [TransactionController::class, 'returnItems']);
         Route::post('transactions/{transaction}/return', [TransactionController::class, 'return']);
         Route::post('transactions/{transaction}/update-assigned-items', [TransactionController::class, 'updateAssignedItems']);
+
+        Route::post('maintenance-work-orders/{maintenanceWorkOrder}/start', [MaintenanceWorkOrderController::class, 'start']);
+        Route::post('maintenance-work-orders/{maintenanceWorkOrder}/complete', [MaintenanceWorkOrderController::class, 'complete']);
+        Route::post('maintenance-work-orders/{maintenanceWorkOrder}/cancel', [MaintenanceWorkOrderController::class, 'cancel']);
+        Route::apiResource('maintenance-work-orders', MaintenanceWorkOrderController::class)
+            ->parameters(['maintenance-work-orders' => 'maintenanceWorkOrder'])
+            ->except('destroy');
 
         Route::get('inventory-snapshots/range', [InventorySnapshotController::class, 'getSnapshotsByDateRange']);
         Route::get('inventory-snapshots/equipment/{equipment}/trend', [InventorySnapshotController::class, 'getEquipmentTrend']);

@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ApproveTransactionRequest;
+use App\Http\Requests\IssueTransactionRequest;
+use App\Http\Requests\ReturnTransactionItemsRequest;
 use App\Http\Requests\StoreTransactionRequest;
 use App\Http\Requests\UpdateTransactionRequest;
 use App\Http\Resources\TransactionResource;
 use App\Models\EquipmentItem;
 use App\Models\Transaction;
+use App\Services\TransactionCustodyService;
 use App\Services\TransactionService;
 use App\Traits\ActionLogger;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,7 +21,10 @@ class TransactionController extends Controller
 {
     use ActionLogger;
 
-    public function __construct(private readonly TransactionService $transactions) {}
+    public function __construct(
+        private readonly TransactionService $transactions,
+        private readonly TransactionCustodyService $custody,
+    ) {}
 
     public function index(Request $request)
     {
@@ -88,13 +95,32 @@ class TransactionController extends Controller
         return response()->noContent();
     }
 
-    public function accept(Request $request, Transaction $transaction)
+    public function accept(ApproveTransactionRequest $request, Transaction $transaction)
     {
-        $this->authorize('process', $transaction);
-        $updated = $this->transactions->accept($transaction, $request->user());
-        $this->logAction('transaction_accepted', ['transaction_id' => $updated->id]);
+        $updated = $this->transactions->accept(
+            $transaction,
+            $request->user(),
+            $request->validated('return_date'),
+        );
+        $this->logAction('transaction_approved', ['transaction_id' => $updated->id]);
 
-        return response()->json(['message' => 'Request accepted.', 'data' => new TransactionResource($updated)]);
+        return response()->json(['message' => 'Request approved and ready for pickup.', 'data' => new TransactionResource($updated)]);
+    }
+
+    public function issue(IssueTransactionRequest $request, Transaction $transaction)
+    {
+        $updated = $this->custody->issue(
+            $transaction,
+            $request->user(),
+            $request->validated('unit_ids'),
+            $request->validated('notes'),
+        );
+        $this->logAction('transaction_issued', [
+            'transaction_id' => $updated->id,
+            'unit_ids' => $request->validated('unit_ids'),
+        ]);
+
+        return response()->json(['message' => 'All assigned equipment was issued.', 'data' => new TransactionResource($updated)]);
     }
 
     public function decline(Request $request, Transaction $transaction)
@@ -116,10 +142,27 @@ class TransactionController extends Controller
     public function return(Request $request, Transaction $transaction)
     {
         $this->authorize('process', $transaction);
-        $updated = $this->transactions->markReturned($transaction, $request->user());
-        $this->logAction('transaction_returned', ['transaction_id' => $updated->id]);
+        $result = $this->custody->returnAllOutstanding($transaction, $request->user());
+        $this->recordReturnActions($result);
 
-        return response()->json(['message' => 'Items returned.', 'data' => new TransactionResource($updated)]);
+        return response()->json([
+            'message' => 'All outstanding items were returned through the compatibility workflow.',
+            'deprecated' => true,
+            'data' => new TransactionResource($result['transaction']),
+        ]);
+    }
+
+    public function returnItems(ReturnTransactionItemsRequest $request, Transaction $transaction)
+    {
+        $result = $this->custody->returnItems($transaction, $request->user(), $request->validated('items'));
+        $this->recordReturnActions($result);
+
+        return response()->json([
+            'message' => $result['completed']
+                ? 'Final outstanding unit returned. The transaction is complete.'
+                : "{$result['returned_count']} unit(s) returned. Outstanding units remain.",
+            'data' => new TransactionResource($result['transaction']),
+        ]);
     }
 
     public function updateAssignedItems(Request $request, Transaction $transaction)
@@ -152,14 +195,48 @@ class TransactionController extends Controller
                 'transactions.return_date',
                 'transactions.status',
                 'transactions.notes',
+                'transactions.accepted_at as approved_at',
+                'transactions.accepted_by_name as approved_by_name',
+                'transactions.issued_at as transaction_issued_at',
+                'transactions.issued_by_name',
                 'transaction_equipment_items.created_at as assigned_at',
+                'transaction_equipment_items.issued_at',
+                'transaction_equipment_items.condition_at_issue',
+                'transaction_equipment_items.returned_at',
+                'transaction_equipment_items.condition_at_return',
+                'transaction_equipment_items.return_notes',
+                'transaction_equipment_items.returned_by_name',
             ])
             ->orderByDesc('transaction_equipment_items.created_at')
             ->get();
 
+        $maintenance = $item->maintenanceWorkOrders()
+            ->with(['assignedTo:id,name', 'reportedBy:id,name'])
+            ->latest()
+            ->get()
+            ->map(fn ($workOrder) => [
+                'id' => $workOrder->id,
+                'type' => $workOrder->type->value,
+                'status' => $workOrder->status->value,
+                'priority' => $workOrder->priority->value,
+                'source_transaction_id' => $workOrder->source_transaction_id,
+                'title' => $workOrder->title,
+                'description' => $workOrder->description,
+                'assigned_to_name' => $workOrder->assigned_to_name,
+                'reported_by_name' => $workOrder->reported_by_name,
+                'scheduled_at' => $workOrder->scheduled_at,
+                'due_at' => $workOrder->due_at,
+                'started_at' => $workOrder->started_at,
+                'completed_at' => $workOrder->completed_at,
+                'result_condition' => $workOrder->result_condition,
+                'completion_notes' => $workOrder->completion_notes,
+                'next_due_at' => $workOrder->next_due_at,
+            ]);
+
         return response()->json([
             'data' => [
                 'history' => $history,
+                'maintenance' => $maintenance,
                 'current' => [
                     'id' => $item->id,
                     'unit_id' => $item->unit_id,
@@ -168,5 +245,30 @@ class TransactionController extends Controller
                 ],
             ],
         ]);
+    }
+
+    /** @param array{transaction:Transaction,returned_count:int,completed:bool,attention_conditions:list<string>,unit_ids:list<string>,work_order_ids:list<int>} $result */
+    private function recordReturnActions(array $result): void
+    {
+        $meta = [
+            'transaction_id' => $result['transaction']->id,
+            'returned_count' => $result['returned_count'],
+            'unit_ids' => $result['unit_ids'],
+            'work_order_ids' => $result['work_order_ids'],
+        ];
+
+        $this->logAction('transaction_items_returned', $meta);
+
+        if (in_array('Damaged', $result['attention_conditions'], true) || in_array('Under Repair', $result['attention_conditions'], true)) {
+            $this->logAction('transaction_damaged_return', $meta);
+        }
+
+        if (in_array('Missing', $result['attention_conditions'], true)) {
+            $this->logAction('transaction_missing_unit', $meta);
+        }
+
+        if ($result['completed']) {
+            $this->logAction('transaction_returned', $meta);
+        }
     }
 }

@@ -25,7 +25,8 @@ class SecurityAndTransactionWorkflowTest extends TestCase
         $this->getJson('/api/users')
             ->assertUnauthorized()
             ->assertHeader('X-Content-Type-Options', 'nosniff')
-            ->assertHeader('X-Frame-Options', 'SAMEORIGIN');
+            ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
+            ->assertHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=()');
 
         Sanctum::actingAs($this->user(), ['app:use']);
 
@@ -111,9 +112,9 @@ class SecurityAndTransactionWorkflowTest extends TestCase
         $this->postJson("/api/transactions/{$transactionId}/accept")->assertForbidden();
 
         $custodian->laboratories()->attach($laboratory);
-        $this->postJson("/api/transactions/{$transactionId}/accept")
+        $this->postJson("/api/transactions/{$transactionId}/accept", ['return_date' => now()->addWeek()->toDateString()])
             ->assertOk()
-            ->assertJsonPath('data.status', 'borrowed');
+            ->assertJsonPath('data.status', 'approved');
     }
 
     public function test_return_workflow_releases_units_and_prevents_duplicate_transitions(): void
@@ -129,8 +130,12 @@ class SecurityAndTransactionWorkflowTest extends TestCase
         ])->assertCreated()->json('data.id');
 
         Sanctum::actingAs($admin, ['app:use']);
-        $this->postJson("/api/transactions/{$transactionId}/accept")->assertOk();
-        $this->postJson("/api/transactions/{$transactionId}/accept")->assertUnprocessable();
+        $dueDate = now()->addWeek()->toDateString();
+        $this->postJson("/api/transactions/{$transactionId}/accept", ['return_date' => $dueDate])->assertOk();
+        $this->postJson("/api/transactions/{$transactionId}/accept", ['return_date' => $dueDate])->assertUnprocessable();
+        $this->postJson("/api/transactions/{$transactionId}/issue", ['unit_ids' => [$items[0]->unit_id]])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'borrowed');
         $this->postJson("/api/transactions/{$transactionId}/return")
             ->assertOk()
             ->assertJsonPath('data.status', 'returned');

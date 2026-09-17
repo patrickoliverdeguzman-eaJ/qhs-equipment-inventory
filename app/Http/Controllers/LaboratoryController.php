@@ -59,6 +59,10 @@ class LaboratoryController extends Controller
 
     public function show(Request $request, Laboratory $laboratory)
     {
+        if ($request->user()->role === 'user' && ! $laboratory->isActive) {
+            abort(404);
+        }
+
         $this->authorize('view', $laboratory);
 
         return new LaboratoryResource($laboratory->load('custodians:id,name,email,role'));

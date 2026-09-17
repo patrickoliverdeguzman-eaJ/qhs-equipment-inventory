@@ -77,6 +77,16 @@ class User extends Authenticatable
         return $this->hasMany(Transaction::class, 'borrower_id');
     }
 
+    public function assignedMaintenanceWorkOrders(): HasMany
+    {
+        return $this->hasMany(MaintenanceWorkOrder::class, 'assigned_to_id');
+    }
+
+    public function reportedMaintenanceWorkOrders(): HasMany
+    {
+        return $this->hasMany(MaintenanceWorkOrder::class, 'reported_by_id');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Transaction extends Model
 {
@@ -26,8 +27,15 @@ class Transaction extends Model
         'notes',
         'status',
         'accepted_at',
+        'accepted_by_id',
+        'issued_at',
+        'issued_by_id',
+        'issued_by_name',
+        'issue_notes',
         'returned_at',
+        'returned_by_id',
         'rejected_at',
+        'rejected_by_id',
         'accepted_by_name',
         'returned_by_name',
         'rejected_by_name',
@@ -41,6 +49,7 @@ class Transaction extends Model
         'borrow_date' => 'datetime',
         'return_date' => 'datetime',
         'accepted_at' => 'datetime',
+        'issued_at' => 'datetime',
         'returned_at' => 'datetime',
         'rejected_at' => 'datetime',
         'status' => 'string',
@@ -67,9 +76,6 @@ class Transaction extends Model
             : null;
     }
 
-    /**
-     * Accessor: Return only the date (Y-m-d) in API responses
-     */
     /**
      * Accessor: Return only the date (Y-m-d) in API responses
      */
@@ -117,7 +123,48 @@ class Transaction extends Model
     public function assignedItems(): BelongsToMany
     {
         return $this->belongsToMany(EquipmentItem::class, 'transaction_equipment_items')
+            ->withPivot([
+                'id',
+                'issued_at',
+                'condition_at_issue',
+                'returned_at',
+                'condition_at_return',
+                'return_notes',
+                'returned_by_id',
+                'returned_by_name',
+            ])
             ->withTimestamps();
+    }
+
+    /** Each physical-unit custody record for this transaction. */
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(TransactionEquipmentItem::class);
+    }
+
+    public function maintenanceWorkOrders(): HasMany
+    {
+        return $this->hasMany(MaintenanceWorkOrder::class, 'source_transaction_id');
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'accepted_by_id');
+    }
+
+    public function issuedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'issued_by_id');
+    }
+
+    public function returnedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'returned_by_id');
+    }
+
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by_id');
     }
 
     /** Get the requested equipment types and quantities. */
@@ -144,6 +191,11 @@ class Transaction extends Model
         return $query->where('status', 'borrowed');
     }
 
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
+    }
+
     /**
      * Scope: Returned transactions
      */
@@ -167,7 +219,9 @@ class Transaction extends Model
     public function isOverdue(): bool
     {
         return $this->status === 'borrowed'
+            && $this->issued_at !== null
             && $this->return_date !== null
-            && now()->greaterThan($this->return_date);
+            && $this->assignments()->whereNotNull('issued_at')->whereNull('returned_at')->exists()
+            && now()->greaterThan(Carbon::parse($this->return_date)->endOfDay());
     }
 }

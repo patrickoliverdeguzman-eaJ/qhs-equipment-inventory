@@ -26,6 +26,26 @@ interface UnitHistoryRecord {
 interface UnitHistoryPayload {
   current?: EquipmentUnit | null;
   history?: UnitHistoryRecord[];
+  maintenance?: UnitMaintenanceRecord[];
+}
+
+interface UnitMaintenanceRecord {
+  id: number;
+  type: string;
+  status: string;
+  priority: string;
+  source_transaction_id?: number | null;
+  title: string;
+  description?: string | null;
+  assigned_to_name?: string | null;
+  reported_by_name?: string | null;
+  scheduled_at?: string | null;
+  due_at?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  result_condition?: string | null;
+  completion_notes?: string | null;
+  next_due_at?: string | null;
 }
 
 export default function ItemHistoryPublic() {
@@ -33,6 +53,7 @@ export default function ItemHistoryPublic() {
   const { user } = useStateContext();
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<UnitHistoryRecord[]>([]);
+  const [maintenance, setMaintenance] = useState<UnitMaintenanceRecord[]>([]);
   const [current, setCurrent] = useState<EquipmentUnit | null>(null);
   const [error, setError] = useState('');
 
@@ -45,6 +66,7 @@ export default function ItemHistoryPublic() {
         if (!active) return;
         const payload = data.data || {};
         setHistory(payload.history || []);
+        setMaintenance(payload.maintenance || []);
         setCurrent(payload.current || null);
         setError('');
       } catch {
@@ -72,9 +94,10 @@ export default function ItemHistoryPublic() {
         ) : current ? (
           <>
             <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid item xs={12} sm={4}><MetricCard icon={<Inventory2OutlinedIcon />} label="Unit ID" value={current.unit_id || current.id} /></Grid>
-              <Grid item xs={12} sm={4}><MetricCard icon={<BuildOutlinedIcon />} label="Condition" value={condition} tone={['Damaged', 'Missing'].includes(condition) ? 'error' : condition === 'Under Repair' ? 'warning' : 'success'} /></Grid>
-              <Grid item xs={12} sm={4}><MetricCard icon={<HistoryOutlinedIcon />} label="Borrowing records" value={history.length} tone="info" /></Grid>
+              <Grid item xs={12} sm={6} md={3}><MetricCard icon={<Inventory2OutlinedIcon />} label="Unit ID" value={current.unit_id || current.id} /></Grid>
+              <Grid item xs={12} sm={6} md={3}><MetricCard icon={<BuildOutlinedIcon />} label="Condition" value={condition} tone={['Damaged', 'Missing'].includes(condition) ? 'error' : condition === 'Under Repair' ? 'warning' : 'success'} /></Grid>
+              <Grid item xs={12} sm={6} md={3}><MetricCard icon={<HistoryOutlinedIcon />} label="Borrowing records" value={history.length} tone="info" /></Grid>
+              <Grid item xs={12} sm={6} md={3}><MetricCard icon={<BuildOutlinedIcon />} label="Maintenance records" value={maintenance.length} tone="warning" /></Grid>
             </Grid>
 
             <SectionCard>
@@ -115,6 +138,40 @@ export default function ItemHistoryPublic() {
                 </>
               )}
             </SectionCard>
+
+            <SectionCard sx={{ mt: 3 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: { xs: 2, sm: 2.5 }, py: 2, borderBottom: 1, borderColor: 'divider' }}>
+                <Box><Typography variant="h6">Maintenance history</Typography><Typography variant="body2" color="text.secondary">Repairs, calibration, inspection, and validation records.</Typography></Box>
+                <Chip label={`${maintenance.length} record${maintenance.length === 1 ? '' : 's'}`} size="small" variant="outlined" />
+              </Stack>
+              {maintenance.length === 0 ? (
+                <EmptyState icon={<BuildOutlinedIcon />} title="No maintenance history" description="Maintenance work orders for this unit will appear here." />
+              ) : (
+                <Stack spacing={1.25} sx={{ p: 1.5 }}>
+                  {maintenance.map((record) => (
+                    <Paper variant="outlined" key={record.id} sx={{ p: 2 }}>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'flex-start' }} spacing={1.5}>
+                        <Box>
+                          <Typography variant="overline" color="primary">#{record.id} · {labelize(record.type)}</Typography>
+                          <Typography fontWeight={760}>{record.title}</Typography>
+                          {record.description && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{record.description}</Typography>}
+                        </Box>
+                        <Stack direction="row" spacing={0.75}>
+                          <Chip label={labelize(record.priority)} size="small" variant="outlined" color={record.priority === 'critical' ? 'error' : record.priority === 'high' ? 'warning' : 'default'} />
+                          <Chip label={labelize(record.status)} size="small" color={record.status === 'completed' ? 'success' : record.status === 'cancelled' ? 'default' : 'info'} />
+                        </Stack>
+                      </Stack>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.4, sm: 2 }} sx={{ mt: 1.25 }}>
+                        <Typography variant="caption" color="text.secondary">Reported by {record.reported_by_name || 'System'}</Typography>
+                        <Typography variant="caption" color="text.secondary">Due {formatDate(record.due_at)}</Typography>
+                        {record.source_transaction_id && <Typography variant="caption" color="text.secondary">Return #{record.source_transaction_id}</Typography>}
+                      </Stack>
+                      {record.completion_notes && <Alert severity={record.result_condition && ['Damaged', 'Missing'].includes(record.result_condition) ? 'warning' : 'success'} sx={{ mt: 1.25 }}>{record.completion_notes}{record.result_condition ? ` · Result: ${record.result_condition}` : ''}</Alert>}
+                    </Paper>
+                  ))}
+                </Stack>
+              )}
+            </SectionCard>
           </>
         ) : !error && <SectionCard><EmptyState title="Unit not found" description={`No tracked equipment unit matches ${unitID}.`} /></SectionCard>}
       </Container>
@@ -124,4 +181,8 @@ export default function ItemHistoryPublic() {
 
 function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+}
+
+function labelize(value: string) {
+  return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

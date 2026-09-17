@@ -16,6 +16,33 @@ import PageHeader from '../../Components/PageHeader';
 import { SectionCard } from '../../Components/WorkspaceUI';
 
 const COLORS = ['#1976d2', '#388e3c', '#d32f2f', '#f57c00', '#7b1fa2', '#00796b'];
+const reportStage = (transaction) => transaction.lifecycle_stage || transaction.status || 'pending';
+const emptyStageCounts = () => ({ total: 0, pending: 0, approved: 0, borrowed: 0, partially_returned: 0, overdue: 0, returned: 0, rejected: 0 });
+const buildStageStats = (rows) => rows.reduce((counts, transaction) => {
+  counts.total += 1;
+  const stage = reportStage(transaction);
+  if (stage in counts) counts[stage] += 1;
+  return counts;
+}, emptyStageCounts());
+const statusLabel = (transaction) => reportStage(transaction).replaceAll('_', ' ').toUpperCase();
+const statusColor = (transaction) => {
+  const stage = reportStage(transaction);
+  if (stage === 'returned') return 'success';
+  if (stage === 'borrowed') return 'primary';
+  if (stage === 'approved') return 'secondary';
+  if (['rejected', 'overdue'].includes(stage)) return 'error';
+  return 'warning';
+};
+const statCards = (stats) => [
+  { label: 'Total', value: stats.total, color: '#1976d2' },
+  { label: 'Pending', value: stats.pending, color: '#f57c00' },
+  { label: 'Awaiting pickup', value: stats.approved, color: '#7b1fa2' },
+  { label: 'Borrowed', value: stats.borrowed, color: '#1976d2' },
+  { label: 'Partial returns', value: stats.partially_returned, color: '#ed6c02' },
+  { label: 'Overdue', value: stats.overdue, color: '#d32f2f' },
+  { label: 'Returned', value: stats.returned, color: '#388e3c' },
+  { label: 'Rejected', value: stats.rejected, color: '#8e244d' },
+];
 
 export default memo(function TransactionReports() {
   const theme = useTheme();
@@ -33,8 +60,15 @@ export default memo(function TransactionReports() {
   const fetchAllTransactions = async () => {
     setLoading(true);
     try {
-      const { data } = await axiosClient.get('/transactions?per_page=1000');
-      const txs = Array.isArray(data.data) ? data.data : [];
+      const txs = [];
+      let page = 1;
+      let lastPage = 1;
+      do {
+        const { data } = await axiosClient.get('/transactions', { params: { per_page: 500, page } });
+        txs.push(...(Array.isArray(data.data) ? data.data : []));
+        lastPage = data.last_page || 1;
+        page += 1;
+      } while (page <= lastPage);
       setTransactions(txs);
       setError('');
     } catch (e) {
@@ -55,13 +89,7 @@ export default memo(function TransactionReports() {
     // Get all transactions created on selected day
     const dailyTx = transactions.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === selectedDay);
 
-    const stats = {
-      total: dailyTx.length,
-      pending: dailyTx.filter(t => t.status === 'pending').length,
-      borrowed: dailyTx.filter(t => t.status === 'borrowed').length,
-      returned: dailyTx.filter(t => t.status === 'returned').length,
-      rejected: dailyTx.filter(t => t.status === 'rejected').length,
-    };
+    const stats = buildStageStats(dailyTx);
 
     return { stats, transactions: dailyTx, date: selectedDay };
   };
@@ -79,18 +107,12 @@ export default memo(function TransactionReports() {
     const byDay = {};
     monthTx.forEach(t => {
       const day = format(new Date(t.created_at), 'yyyy-MM-dd');
-      if (!byDay[day]) byDay[day] = { total: 0, pending: 0, borrowed: 0, returned: 0, rejected: 0 };
+      if (!byDay[day]) byDay[day] = emptyStageCounts();
       byDay[day].total++;
-      byDay[day][t.status]++;
+      byDay[day][reportStage(t)]++;
     });
 
-    const stats = {
-      total: monthTx.length,
-      pending: monthTx.filter(t => t.status === 'pending').length,
-      borrowed: monthTx.filter(t => t.status === 'borrowed').length,
-      returned: monthTx.filter(t => t.status === 'returned').length,
-      rejected: monthTx.filter(t => t.status === 'rejected').length,
-    };
+    const stats = buildStageStats(monthTx);
 
     const chartData = Object.entries(byDay).map(([day, counts]) => ({
       date: day,
@@ -110,18 +132,12 @@ export default memo(function TransactionReports() {
     const byMonth = {};
     annualTx.forEach(t => {
       const month = format(new Date(t.created_at), 'yyyy-MM');
-      if (!byMonth[month]) byMonth[month] = { total: 0, pending: 0, borrowed: 0, returned: 0, rejected: 0 };
+      if (!byMonth[month]) byMonth[month] = emptyStageCounts();
       byMonth[month].total++;
-      byMonth[month][t.status]++;
+      byMonth[month][reportStage(t)]++;
     });
 
-    const stats = {
-      total: annualTx.length,
-      pending: annualTx.filter(t => t.status === 'pending').length,
-      borrowed: annualTx.filter(t => t.status === 'borrowed').length,
-      returned: annualTx.filter(t => t.status === 'returned').length,
-      rejected: annualTx.filter(t => t.status === 'rejected').length,
-    };
+    const stats = buildStageStats(annualTx);
 
     const chartData = Object.entries(byMonth)
       .map(([month, counts]) => ({
@@ -135,7 +151,10 @@ export default memo(function TransactionReports() {
 
     const statusBreakdown = [
       { name: 'Pending', value: stats.pending, color: '#f57c00' },
+      { name: 'Awaiting pickup', value: stats.approved, color: '#7b1fa2' },
       { name: 'Borrowed', value: stats.borrowed, color: '#1976d2' },
+      { name: 'Partially returned', value: stats.partially_returned, color: '#ed6c02' },
+      { name: 'Overdue', value: stats.overdue, color: '#b71c1c' },
       { name: 'Returned', value: stats.returned, color: '#388e3c' },
       { name: 'Rejected', value: stats.rejected, color: '#d32f2f' },
     ].filter(s => s.value > 0);
@@ -173,7 +192,7 @@ export default memo(function TransactionReports() {
       t.created_at ? format(new Date(t.created_at), 'MMM dd, yyyy HH:mm') : '—',
       t.accepted_at ? format(new Date(t.accepted_at), 'MMM dd, yyyy HH:mm') : '—',
       t.returned_at ? format(new Date(t.returned_at), 'MMM dd, yyyy HH:mm') : t.rejected_at ? format(new Date(t.rejected_at), 'MMM dd, yyyy HH:mm') : '—',
-      t.status?.toUpperCase() || 'N/A'
+      statusLabel(t)
     ]);
 
     // Add summary statistics
@@ -182,7 +201,10 @@ export default memo(function TransactionReports() {
       ['SUMMARY STATISTICS'],
       ['Total Transactions', reportData.stats.total],
       ['Pending', reportData.stats.pending],
+      ['Awaiting pickup', reportData.stats.approved],
       ['Borrowed', reportData.stats.borrowed],
+      ['Partially returned', reportData.stats.partially_returned],
+      ['Overdue', reportData.stats.overdue],
       ['Returned', reportData.stats.returned],
       ['Rejected', reportData.stats.rejected],
       [],
@@ -239,7 +261,7 @@ export default memo(function TransactionReports() {
         <td>${formatTs(t.created_at)}</td>
         <td>${formatTs(t.accepted_at)}</td>
         <td>${t.status === 'returned' ? formatTs(t.returned_at) : t.status === 'rejected' ? formatTs(t.rejected_at) : '—'}</td>
-        <td>${t.status?.toUpperCase() || 'N/A'}</td>
+        <td>${statusLabel(t)}</td>
       </tr>`).join('');
 
     const html = `
@@ -310,6 +332,18 @@ export default memo(function TransactionReports() {
               <h4>Borrowed</h4>
               <div class="value">${reportData.stats.borrowed}</div>
             </div>
+            <div class="stat-box" style="border-left-color: #7b1fa2;">
+              <h4>Awaiting pickup</h4>
+              <div class="value">${reportData.stats.approved}</div>
+            </div>
+            <div class="stat-box" style="border-left-color: #ed6c02;">
+              <h4>Partially returned</h4>
+              <div class="value">${reportData.stats.partially_returned}</div>
+            </div>
+            <div class="stat-box" style="border-left-color: #b71c1c;">
+              <h4>Overdue</h4>
+              <div class="value">${reportData.stats.overdue}</div>
+            </div>
             <div class="stat-box" style="border-left-color: #388e3c;">
               <h4>Returned</h4>
               <div class="value">${reportData.stats.returned}</div>
@@ -376,14 +410,8 @@ export default memo(function TransactionReports() {
         </Grid>
 
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          {[
-            { label: 'Total', value: stats.total, color: '#1976d2' },
-            { label: 'Pending', value: stats.pending, color: '#f57c00' },
-            { label: 'Borrowed', value: stats.borrowed, color: '#1976d2' },
-            { label: 'Returned', value: stats.returned, color: '#388e3c' },
-            { label: 'Rejected', value: stats.rejected, color: '#d32f2f' },
-          ].map((stat, i) => (
-            <Grid item xs={12} sm={6} md={2.4} key={i}>
+          {statCards(stats).map((stat, i) => (
+            <Grid item xs={12} sm={6} md={3} key={i}>
               <Card>
                 <CardContent>
                   <Typography color="textSecondary" gutterBottom>
@@ -432,9 +460,9 @@ export default memo(function TransactionReports() {
                       <TableCell sx={{ fontSize: '0.85rem' }}>{t.returned_at ? format(new Date(t.returned_at), 'MMM dd, HH:mm') : '—'}</TableCell>
                       <TableCell>
                         <Chip
-                          label={t.status?.toUpperCase()}
+                          label={statusLabel(t)}
                           size="small"
-                          color={t.status === 'returned' ? 'success' : t.status === 'borrowed' ? 'primary' : t.status === 'rejected' ? 'error' : 'warning'}
+                          color={statusColor(t)}
                         />
                       </TableCell>
                     </TableRow>
@@ -482,14 +510,8 @@ export default memo(function TransactionReports() {
         </Grid>
 
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          {[
-            { label: 'Total', value: stats.total, color: '#1976d2' },
-            { label: 'Pending', value: stats.pending, color: '#f57c00' },
-            { label: 'Borrowed', value: stats.borrowed, color: '#1976d2' },
-            { label: 'Returned', value: stats.returned, color: '#388e3c' },
-            { label: 'Rejected', value: stats.rejected, color: '#d32f2f' },
-          ].map((stat, i) => (
-            <Grid item xs={12} sm={6} md={2.4} key={i}>
+          {statCards(stats).map((stat, i) => (
+            <Grid item xs={12} sm={6} md={3} key={i}>
               <Card>
                 <CardContent>
                   <Typography color="textSecondary" gutterBottom>
@@ -557,9 +579,9 @@ export default memo(function TransactionReports() {
                     <TableCell sx={{ fontSize: '0.85rem' }}>{t.returned_at ? format(new Date(t.returned_at), 'MMM dd, HH:mm') : '—'}</TableCell>
                     <TableCell>
                       <Chip
-                        label={t.status?.toUpperCase()}
+                        label={statusLabel(t)}
                         size="small"
-                        color={t.status === 'returned' ? 'success' : t.status === 'borrowed' ? 'primary' : t.status === 'rejected' ? 'error' : 'warning'}
+                        color={statusColor(t)}
                       />
                     </TableCell>
                   </TableRow>
@@ -599,14 +621,8 @@ export default memo(function TransactionReports() {
         </Grid>
 
         <Grid container spacing={2} sx={{ mb: 3 }}>
-          {[
-            { label: 'Total', value: stats.total, color: '#1976d2' },
-            { label: 'Pending', value: stats.pending, color: '#f57c00' },
-            { label: 'Borrowed', value: stats.borrowed, color: '#1976d2' },
-            { label: 'Returned', value: stats.returned, color: '#388e3c' },
-            { label: 'Rejected', value: stats.rejected, color: '#d32f2f' },
-          ].map((stat, i) => (
-            <Grid item xs={12} sm={6} md={2.4} key={i}>
+          {statCards(stats).map((stat, i) => (
+            <Grid item xs={12} sm={6} md={3} key={i}>
               <Card>
                 <CardContent>
                   <Typography color="textSecondary" gutterBottom>
@@ -707,9 +723,9 @@ export default memo(function TransactionReports() {
                     <TableCell sx={{ fontSize: '0.85rem' }}>{t.returned_at ? format(new Date(t.returned_at), 'MMM dd, HH:mm') : '—'}</TableCell>
                     <TableCell>
                       <Chip
-                        label={t.status?.toUpperCase()}
+                        label={statusLabel(t)}
                         size="small"
-                        color={t.status === 'returned' ? 'success' : t.status === 'borrowed' ? 'primary' : t.status === 'rejected' ? 'error' : 'warning'}
+                        color={statusColor(t)}
                       />
                     </TableCell>
                   </TableRow>

@@ -51,4 +51,9 @@ class Laboratory extends Model
             'equipment_id',
         );
     }
+
+    public function maintenanceWorkOrders(): HasMany
+    {
+        return $this->hasMany(MaintenanceWorkOrder::class);
+    }
 }

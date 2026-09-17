@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
-import axiosClient from '../axiosClient';
+import axiosClient, { resetCsrfCookie } from '../axiosClient';
 import type { AppUser } from '../types/domain';
 
 interface StateContextValue {
@@ -10,34 +10,21 @@ interface StateContextValue {
   setToken: (token: string | null) => void;
 }
 
-const readStoredUser = (): AppUser | null => {
-  try {
-    const storedUser = localStorage.getItem('USER');
-    return storedUser ? JSON.parse(storedUser) as AppUser : null;
-  } catch {
-    localStorage.removeItem('USER');
-    return null;
-  }
-};
-
 const StateContext = createContext<StateContextValue | undefined>(undefined);
 
 export const ContextProvider = ({ children }: PropsWithChildren) => {
-  const [user, setUserState] = useState<AppUser | null>(readStoredUser);
-  const [token, setTokenState] = useState<string | null>(() => localStorage.getItem('ACCESS_TOKEN'));
-  const [initializing, setInitializing] = useState(Boolean(token));
+  const [user, setUserState] = useState<AppUser | null>(null);
+  const [token, setTokenState] = useState<string | null>(null);
+  const [initializing, setInitializing] = useState(true);
 
   const setUser = useCallback((nextUser: AppUser | null) => {
     setUserState(nextUser);
-    if (nextUser) localStorage.setItem('USER', JSON.stringify(nextUser));
-    else localStorage.removeItem('USER');
   }, []);
 
   const setToken = useCallback((nextToken: string | null) => {
-    setTokenState(nextToken);
-    if (nextToken) localStorage.setItem('ACCESS_TOKEN', nextToken);
-    else {
-      localStorage.removeItem('ACCESS_TOKEN');
+    setTokenState(nextToken ? 'session' : null);
+    if (!nextToken) {
+      resetCsrfCookie();
       setUser(null);
     }
   }, [setUser]);
@@ -53,19 +40,22 @@ export const ContextProvider = ({ children }: PropsWithChildren) => {
   }, [setUser]);
 
   useEffect(() => {
-    if (!token) {
-      setInitializing(false);
-      return;
-    }
-
     let active = true;
     axiosClient.get<AppUser>('/user')
-      .then(({ data }) => active && setUser(data))
-      .catch(() => active && setToken(null))
+      .then(({ data }) => {
+        if (!active) return;
+        setUser(data);
+        setTokenState('session');
+      })
+      .catch(() => {
+        if (!active) return;
+        setTokenState(null);
+        setUser(null);
+      })
       .finally(() => active && setInitializing(false));
 
     return () => { active = false; };
-  }, [setToken, setUser, token]);
+  }, [setUser]);
 
   const value = useMemo(
     () => ({ user, token, initializing, setUser, setToken }),

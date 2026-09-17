@@ -155,11 +155,26 @@ class ActionLogController extends Controller
                 case 'transaction_accepted':
                     $friendly = "{$userName} accepted request ".($m['transaction_id'] ?? '');
                     break;
+                case 'transaction_approved':
+                    $friendly = "{$userName} approved request ".($m['transaction_id'] ?? '').' for pickup';
+                    break;
+                case 'transaction_issued':
+                    $friendly = "{$userName} issued equipment for request ".($m['transaction_id'] ?? '');
+                    break;
+                case 'transaction_items_returned':
+                    $friendly = "{$userName} returned ".($m['returned_count'] ?? 0).' unit(s) for request '.($m['transaction_id'] ?? '');
+                    break;
+                case 'transaction_damaged_return':
+                    $friendly = "{$userName} recorded a damaged or repair-needed return for request ".($m['transaction_id'] ?? '');
+                    break;
+                case 'transaction_missing_unit':
+                    $friendly = "{$userName} recorded a missing unit for request ".($m['transaction_id'] ?? '');
+                    break;
                 case 'transaction_declined':
                     $friendly = "{$userName} declined request ".($m['transaction_id'] ?? '');
                     break;
                 case 'transaction_returned':
-                    $friendly = "{$userName} marked returned ".($m['transaction_id'] ?? '');
+                    $friendly = "{$userName} completed return for request ".($m['transaction_id'] ?? '');
                     break;
                 case 'transaction_updated':
                     $friendly = "{$userName} updated borrow request ".($m['transaction_id'] ?? '');
@@ -169,6 +184,21 @@ class ActionLogController extends Controller
                     break;
                 case 'transaction_assigned_items_updated':
                     $friendly = "{$userName} updated assigned items for request ".($m['transaction_id'] ?? '');
+                    break;
+                case 'maintenance_created':
+                    $friendly = "{$userName} opened maintenance work order #".($m['maintenance_id'] ?? '').' for '.($itemMap[$m['item_id']] ?? ('item #'.($m['item_id'] ?? '')));
+                    break;
+                case 'maintenance_updated':
+                    $friendly = "{$userName} updated maintenance work order #".($m['maintenance_id'] ?? '');
+                    break;
+                case 'maintenance_started':
+                    $friendly = "{$userName} started maintenance work order #".($m['maintenance_id'] ?? '');
+                    break;
+                case 'maintenance_completed':
+                    $friendly = "{$userName} completed maintenance work order #".($m['maintenance_id'] ?? '');
+                    break;
+                case 'maintenance_cancelled':
+                    $friendly = "{$userName} cancelled maintenance work order #".($m['maintenance_id'] ?? '');
                     break;
                 default:
                     $friendly = ($row->user->name ?? 'System').' — '.($row->action ?? '');

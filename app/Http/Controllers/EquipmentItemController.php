@@ -26,7 +26,9 @@ class EquipmentItemController extends Controller
         if ($user->isCustodian()) {
             $query->whereHas('equipment.laboratory.custodians', fn (Builder $builder) => $builder->whereKey($user->id));
         } elseif ($user->role === 'user') {
-            $query->whereHas('equipment', fn (Builder $builder) => $builder->where('isActive', true));
+            $query->whereHas('equipment', fn (Builder $builder) => $builder
+                ->where('isActive', true)
+                ->whereHas('laboratory', fn (Builder $laboratory) => $laboratory->where('isActive', true)));
         }
 
         return EquipmentItemResource::collection($query->latest('id')->limit(2000)->get());
@@ -89,6 +91,12 @@ class EquipmentItemController extends Controller
 
     public function availableItems(Request $request, Equipment $equipment)
     {
+        if ($request->user()->role === 'user' && (
+            ! $equipment->isActive || ! $equipment->laboratory()->value('isActive')
+        )) {
+            abort(404);
+        }
+
         $this->authorize('view', $equipment);
 
         return EquipmentItemResource::collection(

@@ -27,6 +27,7 @@ const EquipmentInfo = lazy(() => import('./views/admin/equipmentInfo'));
 const ItemForm = lazy(() => import('./views/admin/ItemForm'));
 const EquipmentCategory = lazy(() => import('./views/admin/category'));
 const ItemHistoryWrapper = lazy(() => import('./views/ItemHistoryWrapper'));
+const MaintenanceWorkOrders = lazy(() => import('./views/admin/MaintenanceWorkOrders'));
 const DailyInventorySnapshots = lazy(() => import('./views/admin/dailyInventorySnapshots'));
 const CustodianDashboard = lazy(() => import('./views/custodian/CustodianDashboard'));
 const Home = lazy(() => import('./views/Home'));
@@ -85,6 +86,7 @@ const router = createBrowserRouter([
       { path: 'equipment/info/:equipmentID/add-item', element: screen(ItemForm, 'itemCreate') },
       { path: 'equipment/info/:equipmentID/edit-item/:id', element: screen(ItemForm, 'itemUpdate') },
       { path: 'transactions', element: screen(Transaction) },
+      { path: 'maintenance', element: screen(MaintenanceWorkOrders) },
       { path: 'transaction-reports', element: screen(TransactionReports) },
       { path: 'logs', element: screen(Logs) },
       { path: 'inventory', element: screen(Inventory) },
@@ -102,6 +104,7 @@ const router = createBrowserRouter([
       { path: 'equipment/info/:equipmentID/add-item', element: screen(ItemForm, 'itemCreate') },
       { path: 'equipment/info/:equipmentID/edit-item/:id', element: screen(ItemForm, 'itemUpdate') },
       { path: 'transactions', element: screen(Transaction) },
+      { path: 'maintenance', element: screen(MaintenanceWorkOrders) },
       { path: 'transaction-reports', element: screen(TransactionReports) },
       { path: 'inventory-snapshots', element: screen(DailyInventorySnapshots) },
     ],

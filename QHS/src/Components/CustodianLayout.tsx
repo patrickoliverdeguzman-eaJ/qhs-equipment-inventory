@@ -16,6 +16,7 @@ import {
 import BarChartIcon from '@mui/icons-material/BarChart';
 import BiotechIcon from '@mui/icons-material/Biotech';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import EngineeringIcon from '@mui/icons-material/Engineering';
 import HourglassTopIcon from '@mui/icons-material/HourglassTop';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import NotificationsIcon from '@mui/icons-material/Notifications';
@@ -41,6 +42,7 @@ const titleFor = (pathname: string) => {
     ['/custodian/transaction-reports', 'Transaction reports'],
     ['/custodian/inventory-snapshots', 'Daily inventory snapshots'],
     ['/custodian/transactions', 'Borrowing transactions'],
+    ['/custodian/maintenance', 'Maintenance & calibration'],
     ['/custodian/equipment', 'Equipment & units'],
   ];
   return titles.find(([path]) => pathname.startsWith(path))?.[1] || 'Overview';
@@ -51,7 +53,7 @@ export default function CustodianLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mode, setMode] = useState<PaletteMode>(() => localStorage.getItem('themeMode') === 'dark' ? 'dark' : 'light');
-  const [laboratoryId, setLaboratoryId] = useState<number | null>(null);
+  const [laboratoryIds, setLaboratoryIds] = useState<number[]>([]);
   const [labCheckComplete, setLabCheckComplete] = useState(false);
   const [pendingNotifications, setPendingNotifications] = useState<PendingTransaction[]>([]);
   const [notificationAnchor, setNotificationAnchor] = useState<HTMLElement | null>(null);
@@ -82,16 +84,16 @@ export default function CustodianLayout() {
     axiosClient.get<{ data: Laboratory[] }>('/laboratories', { params: { custodian_id: user.id } })
       .then(({ data }) => {
         if (!active) return;
-        setLaboratoryId(data.data?.[0]?.id || null);
+        setLaboratoryIds((data.data || []).map((laboratory) => laboratory.id));
       })
-      .catch(() => active && setLaboratoryId(null))
+      .catch(() => active && setLaboratoryIds([]))
       .finally(() => active && setLabCheckComplete(true));
 
     return () => { active = false; };
   }, [user?.id]);
 
   useEffect(() => {
-    if (!laboratoryId) {
+    if (laboratoryIds.length === 0) {
       setPendingNotifications([]);
       return undefined;
     }
@@ -100,7 +102,7 @@ export default function CustodianLayout() {
       axiosClient.get<{ data: PendingTransaction[] }>('/transactions', { params: { per_page: 100 } })
         .then(({ data }) => {
           const rows = data.data || [];
-          setPendingNotifications(rows.filter((item) => item.status === 'pending' && item.laboratory_id === laboratoryId));
+          setPendingNotifications(rows.filter((item) => item.status === 'pending' && laboratoryIds.includes(item.laboratory_id)));
         })
         .catch(() => setPendingNotifications([]));
     };
@@ -111,11 +113,13 @@ export default function CustodianLayout() {
 
     if (window.Echo) {
       try {
-        window.Echo.private(`transactions.lab.${laboratoryId}`)
-          .listen('.transaction.updated', (event: unknown) => {
-            refresh();
-            window.dispatchEvent(new CustomEvent('transactionUpdated', { detail: event }));
-          });
+        laboratoryIds.forEach((laboratoryId) => {
+          window.Echo?.private(`transactions.lab.${laboratoryId}`)
+            .listen('.transaction.updated', (event: unknown) => {
+              refresh();
+              window.dispatchEvent(new CustomEvent('transactionUpdated', { detail: event }));
+            });
+        });
       } catch { /* Polling remains available. */ }
     }
 
@@ -123,12 +127,14 @@ export default function CustodianLayout() {
       window.removeEventListener('transactionUpdated', refresh);
       window.clearInterval(interval);
       if (window.Echo) {
-        try { window.Echo.leave(`transactions.lab.${laboratoryId}`); } catch { /* Already disconnected. */ }
+        laboratoryIds.forEach((laboratoryId) => {
+          try { window.Echo?.leave(`transactions.lab.${laboratoryId}`); } catch { /* Already disconnected. */ }
+        });
       }
     };
-  }, [laboratoryId]);
+  }, [laboratoryIds]);
 
-  const disabled = labCheckComplete && !laboratoryId;
+  const disabled = labCheckComplete && laboratoryIds.length === 0;
   const navSections = useMemo<StaffNavigationSection[]>(() => [
     {
       label: 'Laboratory',
@@ -136,6 +142,7 @@ export default function CustodianLayout() {
         { label: 'Overview', to: '/custodian', icon: <DashboardIcon fontSize="small" />, end: true },
         { label: 'Equipment', to: '/custodian/equipment', icon: <BiotechIcon fontSize="small" />, disabled },
         { label: 'Transactions', to: '/custodian/transactions', icon: <SwapHorizIcon fontSize="small" />, disabled },
+        { label: 'Maintenance', to: '/custodian/maintenance', icon: <EngineeringIcon fontSize="small" />, disabled },
       ],
     },
     {

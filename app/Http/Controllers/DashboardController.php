@@ -6,6 +6,7 @@ use App\Enums\EquipmentCondition;
 use App\Models\ActionLog;
 use App\Models\EquipmentItem;
 use App\Models\Laboratory;
+use App\Models\MaintenanceWorkOrder;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -95,6 +96,12 @@ class DashboardController extends Controller
     public function summary()
     {
         $unavailable = EquipmentCondition::unavailableValues();
+        $outstanding = fn ($query) => $query->whereNotNull('issued_at')->whereNull('returned_at');
+        $partiallyReturned = Transaction::query()
+            ->borrowed()
+            ->whereHas('assignments', fn ($query) => $query->whereNotNull('returned_at'))
+            ->whereHas('assignments', $outstanding)
+            ->count();
 
         return response()->json([
             'users' => [
@@ -109,6 +116,16 @@ class DashboardController extends Controller
                 'borrowed' => EquipmentItem::where('isBorrowed', true)->count(),
             ],
             'pending_requests' => Transaction::pending()->count(),
+            'approved_requests' => Transaction::approved()->count(),
+            'overdue_requests' => Transaction::query()
+                ->borrowed()
+                ->whereDate('return_date', '<', today())
+                ->whereHas('assignments', $outstanding)
+                ->count(),
+            'partial_returns' => $partiallyReturned,
+            'maintenance_open' => MaintenanceWorkOrder::query()->active()->count(),
+            'maintenance_overdue' => MaintenanceWorkOrder::query()->active()->where('due_at', '<', now())->count(),
+            'maintenance_due_soon' => MaintenanceWorkOrder::query()->active()->whereBetween('due_at', [now(), now()->addDays(7)])->count(),
             'recent_actions' => ActionLog::where('created_at', '>=', now()->subDay())->count(),
         ]);
     }

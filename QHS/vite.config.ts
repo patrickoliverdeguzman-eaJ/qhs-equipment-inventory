@@ -35,6 +35,10 @@ export default defineConfig(({ mode }) => {
         target: proxyTarget,
         changeOrigin: true,
       },
+      '/sanctum': {
+        target: proxyTarget,
+        changeOrigin: true,
+      },
       '/broadcasting': {
         target: proxyTarget,
         changeOrigin: true,

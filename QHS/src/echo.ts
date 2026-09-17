@@ -1,6 +1,7 @@
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
-import { backendBaseUrl } from './axiosClient';
+import axios from 'axios';
+import { backendBaseUrl, ensureCsrfCookie } from './axiosClient';
 
 window.Pusher = Pusher;
 
@@ -31,17 +32,18 @@ try {
     authorizer: (channel) => ({
       authorize: async (socketId, callback) => {
         try {
-          const response = await fetch(`${backendBaseUrl}/broadcasting/auth`, {
-            method: 'POST',
+          await ensureCsrfCookie();
+          const response = await axios.post(`${backendBaseUrl}/broadcasting/auth`, {
+            socket_id: socketId,
+            channel_name: channel.name,
+          }, {
+            withCredentials: true,
+            withXSRFToken: true,
             headers: {
               Accept: 'application/json',
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${localStorage.getItem('ACCESS_TOKEN') || ''}`,
             },
-            body: JSON.stringify({ socket_id: socketId, channel_name: channel.name }),
           });
-          const data = await response.json();
-          callback(response.ok ? null : new Error(data.message || 'Channel authorization failed.'), data);
+          callback(null, response.data);
         } catch (error) {
           callback(error instanceof Error ? error : new Error('Channel authorization failed.'), null);
         }

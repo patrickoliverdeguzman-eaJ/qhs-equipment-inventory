@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureActiveUser
@@ -11,7 +12,18 @@ class EnsureActiveUser
     public function handle(Request $request, Closure $next): Response
     {
         if (! $request->user()?->isActive) {
-            $request->user()?->currentAccessToken()?->delete();
+            $accessToken = $request->user()?->currentAccessToken();
+
+            if ($accessToken && method_exists($accessToken, 'delete')) {
+                $accessToken->delete();
+            }
+
+            Auth::guard('web')->logout();
+
+            if ($request->hasSession()) {
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+            }
 
             return response()->json([
                 'message' => 'Your account is inactive. Please contact an administrator.',

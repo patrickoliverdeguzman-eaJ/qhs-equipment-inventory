@@ -7,7 +7,9 @@ use App\Http\Requests\RegisterRequest;
 use App\Mail\PasswordResetMail;
 use App\Mail\VerifyEmailMail;
 use App\Models\User;
+use App\Support\SensitiveMailTransport;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -40,11 +42,19 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $user->tokens()->where('name', 'main')->delete();
+        if (! $request->hasSession()) {
+            return response()->json([
+                'message' => 'A secure browser session is required. Refresh the page and try again.',
+            ], 419);
+        }
+
+        $user->tokens()->delete();
+        Auth::guard('web')->login($user);
+        $request->session()->regenerate();
 
         return response()->json([
             'user' => $user,
-            'token' => $user->createToken('main', ['app:use'])->plainTextToken,
+            'session_authenticated' => true,
             'redirectUrl' => match ($user->role) {
                 'admin' => '/admin',
                 'custodian' => '/custodian',
@@ -77,7 +87,18 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()?->delete();
+        $accessToken = $request->user()->currentAccessToken();
+
+        if ($accessToken && method_exists($accessToken, 'delete')) {
+            $accessToken->delete();
+        }
+
+        Auth::guard('web')->logout();
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return response()->noContent();
     }
@@ -89,6 +110,7 @@ class AuthController extends Controller
 
         if ($user) {
             try {
+                SensitiveMailTransport::assertSafe();
                 $plainToken = Str::random(64);
                 $user->update([
                     'reset_token' => hash('sha256', $plainToken),
@@ -139,6 +161,7 @@ class AuthController extends Controller
     private function sendVerificationEmail(User $user): bool
     {
         try {
+            SensitiveMailTransport::assertSafe();
             $url = URL::temporarySignedRoute(
                 'verification.verify',
                 now()->addHours(24),

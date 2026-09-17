@@ -10,17 +10,20 @@ import {
   Table, TableHead, TableRow, TableCell, TableBody, TableContainer, IconButton, Paper,
   Typography, Grid, Alert, CircularProgress, Checkbox, Autocomplete,
   useTheme, useMediaQuery, List, ListItem, ListItemText, ListItemSecondaryAction,
-  Tooltip, Stack
+  Tooltip, Stack, Snackbar, LinearProgress, Divider
 } from "@mui/material";
 import {
   Edit, Add, Visibility, Save, Search as SearchIcon,
   Close, CheckCircle, Warning, Info, SwapHoriz, Pending,
   CheckCircleOutline, Cancel, HourglassEmpty, Autorenew, Block,
-  Delete, InboxOutlined
+  Delete, InboxOutlined, LocalShippingOutlined, AssignmentTurnedInOutlined,
+  Inventory2Outlined
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import PageHeader from "../../Components/PageHeader";
 import { SectionCard } from "../../Components/WorkspaceUI";
+import QrUnitScanner from "../../Components/QrUnitScanner";
+import { addUniqueUnitScan, returnProgress, validateSelectedReturns } from "../../utils/custodyWorkflow";
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -66,6 +69,10 @@ export default memo(function Transactions() {
 
   // Reject dialog
   const [rejectDialog, setRejectDialog] = useState({ open: false, transactionId: null, reason: '' });
+  const [approvalDialog, setApprovalDialog] = useState({ open: false, transaction: null, dueDate: '', busy: false, error: '' });
+  const [issueDialog, setIssueDialog] = useState({ open: false, transaction: null, scanned: [], notes: '', busy: false, error: '' });
+  const [returnDialog, setReturnDialog] = useState({ open: false, transaction: null, selected: {}, details: {}, busy: false, error: '' });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   // Detail Modal
   const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -197,9 +204,22 @@ export default memo(function Transactions() {
 
   const totalQuantity = form.equipment.reduce((sum, e) => sum + (e.quantity || 0), 0);
 
+  const getStage = (transaction) => transaction.lifecycle_stage || transaction.status;
+
+  const getStatusLabel = (transaction) => {
+    if (transaction.status === 'approved') return 'Approved — awaiting pickup';
+    if (transaction.lifecycle_stage === 'partially_returned') return transaction.is_overdue ? 'Partially returned — overdue' : 'Partially returned';
+    if (transaction.is_overdue) return 'Overdue';
+    if (transaction.is_due_today) return 'Due today';
+    return transaction.status ? transaction.status.replaceAll('_', ' ') : 'Unknown';
+  };
+
   const getStatusIcon = (status) => {
     switch (status) {
       case 'pending': return <Pending fontSize="small" />;
+      case 'approved': return <Inventory2Outlined fontSize="small" />;
+      case 'partially_returned': return <Autorenew fontSize="small" />;
+      case 'overdue': return <Warning fontSize="small" />;
       case 'borrowed': return <CheckCircleOutline fontSize="small" />;
       case 'returned': return <CheckCircle fontSize="small" />;
       case 'rejected': return <Cancel fontSize="small" />;
@@ -210,6 +230,9 @@ export default memo(function Transactions() {
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending': return 'warning';
+      case 'approved': return 'secondary';
+      case 'partially_returned': return 'warning';
+      case 'overdue': return 'error';
       case 'borrowed': return 'info';
       case 'returned': return 'success';
       case 'rejected': return 'error';
@@ -226,7 +249,7 @@ export default memo(function Transactions() {
       setEditStatus(status);
       if (status === 'pending') {
         setEditAllowed({ full: true, notes: true, return_date: true });
-      } else if (status === 'borrowed') {
+      } else if (['approved', 'borrowed'].includes(status)) {
         setEditAllowed({ full: false, notes: true, return_date: true });
       } else if (['rejected', 'returned'].includes(status)) {
         setEditAllowed({ full: false, notes: true, return_date: false });
@@ -253,12 +276,13 @@ export default memo(function Transactions() {
       setEditMode(false);
       setEditAllowed({ full: true, notes: true, return_date: true });
       setEditStatus(null);
+      const isStudentRequest = currentUser?.role === "user";
       setForm({
         id: null,
-        borrower_id: currentUser?.id || null,
-        borrower_name: currentUser?.name || "",
-        borrower_email: currentUser?.email || "",
-        borrower_contact: currentUser?.phone_number || "",
+        borrower_id: isStudentRequest ? currentUser.id : null,
+        borrower_name: isStudentRequest ? currentUser.name || "" : "",
+        borrower_email: isStudentRequest ? currentUser.email || "" : "",
+        borrower_contact: isStudentRequest ? currentUser.phone_number || "" : "",
         laboratory_id: "",
         equipment: [],
         borrow_date: format(new Date(), "yyyy-MM-dd"),
@@ -352,7 +376,7 @@ export default memo(function Transactions() {
         // when editing, backend accepts different payloads depending on status
         if (editStatus === 'pending' || editStatus === null) {
           await axiosClient.put(`/transactions/${form.id}`, payload);
-        } else if (editStatus === 'borrowed') {
+        } else if (['approved', 'borrowed'].includes(editStatus)) {
           await axiosClient.put(`/transactions/${form.id}`, {
             notes: form.notes || null,
             return_date: form.return_date || null
@@ -380,15 +404,40 @@ export default memo(function Transactions() {
     }
   };
 
-  const handleAccept = async (id) => {
-    if (!window.confirm("Accept this request?")) return;
+  const showSnackbar = (message, severity = 'success') => setSnackbar({ open: true, message, severity });
+
+  const assignedUnits = (transaction) => (transaction?.equipment || []).flatMap(eq =>
+    (eq.items || []).map(item => ({ ...item, equipmentName: eq.name }))
+  );
+
+  const handleAccept = (transaction) => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const existingDueDate = transaction.return_date?.split(' ')[0] || '';
+    setApprovalDialog({
+      open: true,
+      transaction,
+      dueDate: existingDueDate >= today ? existingDueDate : today,
+      busy: false,
+      error: '',
+    });
+  };
+
+  const confirmApproval = async () => {
+    if (!approvalDialog.dueDate) {
+      setApprovalDialog(prev => ({ ...prev, error: 'Choose a due date before approval.' }));
+      return;
+    }
+    setApprovalDialog(prev => ({ ...prev, busy: true, error: '' }));
     try {
-      await axiosClient.post(`/transactions/${id}/accept`);
+      await axiosClient.post(`/transactions/${approvalDialog.transaction.id}/accept`, {
+        return_date: approvalDialog.dueDate,
+      });
+      setApprovalDialog(prev => ({ ...prev, open: false, busy: false }));
       fetchTransactions(page);
       notifyTransactionsChanged();
-      alert("Approved!");
+      showSnackbar('Request approved. The assigned units are reserved and ready for pickup.');
     } catch (e) {
-      alert(e.response?.data?.message || "Failed");
+      setApprovalDialog(prev => ({ ...prev, busy: false, error: e.response?.data?.message || 'Approval failed.' }));
     }
   };
 
@@ -405,20 +454,99 @@ export default memo(function Transactions() {
       });
       fetchTransactions(page);
       notifyTransactionsChanged();
-    } catch {
-      alert('Failed to decline request');
+      showSnackbar('Request declined. Reserved units are available again.');
+    } catch (e) {
+      showSnackbar(e.response?.data?.message || 'Failed to decline request.', 'error');
     }
   };
 
-  const handleReturn = async (id) => {
-    if (!window.confirm("Mark as returned?")) return;
+  const openIssueDialog = (transaction) => {
+    setIssueDialog({ open: true, transaction, scanned: [], notes: '', busy: false, error: '' });
+  };
+
+  const addIssueScan = (unitId) => {
+    const validUnits = assignedUnits(issueDialog.transaction).map(item => item.unit_id);
+    const result = addUniqueUnitScan(issueDialog.scanned, unitId, validUnits);
+    if (result.error === 'unknown') {
+      setIssueDialog(prev => ({ ...prev, error: `${result.unitId || 'That scan'} is not assigned to this request.` }));
+      return;
+    }
+    if (result.error === 'duplicate') {
+      showSnackbar(`${result.unitId} was already checked.`, 'warning');
+      return;
+    }
+    setIssueDialog(prev => ({ ...prev, scanned: result.units, error: '' }));
+  };
+
+  const confirmIssue = async () => {
+    const required = assignedUnits(issueDialog.transaction);
+    if (issueDialog.scanned.length !== required.length) {
+      setIssueDialog(prev => ({ ...prev, error: 'Scan or check every assigned unit before issuing.' }));
+      return;
+    }
+    setIssueDialog(prev => ({ ...prev, busy: true, error: '' }));
     try {
-      await axiosClient.post(`/transactions/${id}/return`);
+      await axiosClient.post(`/transactions/${issueDialog.transaction.id}/issue`, {
+        unit_ids: issueDialog.scanned,
+        notes: issueDialog.notes.trim() || null,
+      });
+      setIssueDialog(prev => ({ ...prev, open: false, busy: false }));
       fetchTransactions(page);
       notifyTransactionsChanged();
-      alert("Returned successfully!");
-    } catch {
-      alert("Failed to return items");
+      showSnackbar('Equipment issued. Custody and issue conditions were recorded.');
+    } catch (e) {
+      setIssueDialog(prev => ({ ...prev, busy: false, error: e.response?.data?.message || 'Could not issue equipment.' }));
+    }
+  };
+
+  const openReturnDialog = (transaction) => {
+    const outstanding = assignedUnits(transaction).filter(item => item.issued_at && !item.returned_at);
+    setReturnDialog({
+      open: true,
+      transaction,
+      selected: {},
+      details: Object.fromEntries(outstanding.map(item => [item.unit_id, { condition: '', notes: '' }])),
+      busy: false,
+      error: '',
+    });
+  };
+
+  const addReturnScan = (unitId) => {
+    const outstanding = assignedUnits(returnDialog.transaction).filter(item => item.issued_at && !item.returned_at);
+    if (!outstanding.some(item => item.unit_id === unitId)) {
+      setReturnDialog(prev => ({ ...prev, error: `${unitId} is not an outstanding unit on this request.` }));
+      return;
+    }
+    if (returnDialog.selected[unitId]) {
+      showSnackbar(`${unitId} is already selected.`, 'warning');
+      return;
+    }
+    setReturnDialog(prev => ({ ...prev, selected: { ...prev.selected, [unitId]: true }, error: '' }));
+  };
+
+  const confirmPartialReturn = async () => {
+    const selectedUnitIds = Object.entries(returnDialog.selected).filter(([, checked]) => checked).map(([unitId]) => unitId);
+    const validationError = validateSelectedReturns(selectedUnitIds, returnDialog.details);
+    if (validationError) {
+      setReturnDialog(prev => ({ ...prev, error: validationError }));
+      return;
+    }
+
+    setReturnDialog(prev => ({ ...prev, busy: true, error: '' }));
+    try {
+      const { data } = await axiosClient.post(`/transactions/${returnDialog.transaction.id}/return-items`, {
+        items: selectedUnitIds.map(unitId => ({
+          unit_id: unitId,
+          condition: returnDialog.details[unitId].condition,
+          notes: returnDialog.details[unitId].notes.trim() || null,
+        })),
+      });
+      setReturnDialog(prev => ({ ...prev, open: false, busy: false }));
+      fetchTransactions(page);
+      notifyTransactionsChanged();
+      showSnackbar(data.message || 'Return recorded.');
+    } catch (e) {
+      setReturnDialog(prev => ({ ...prev, busy: false, error: e.response?.data?.message || 'Could not record this return.' }));
     }
   };
 
@@ -458,7 +586,7 @@ export default memo(function Transactions() {
 
     } catch (e) {
       console.error("Failed to load details", e);
-      alert("Could not load assigned items.");
+      showSnackbar('Could not load assigned items.', 'error');
     }
   };
 
@@ -482,7 +610,7 @@ export default memo(function Transactions() {
     });
 
     if (hasWrongCount) {
-      alert("You must assign exactly the required number of units for each equipment.");
+      showSnackbar('Assign exactly the required number of units for each equipment.', 'warning');
       return;
     }
 
@@ -491,7 +619,7 @@ export default memo(function Transactions() {
         assigned_items: assignedItems
       });
 
-      alert("Assigned items updated successfully!");
+      showSnackbar('Assigned items updated successfully.');
       setSelectedTransaction(null);
       setIsEditingItems(false);
       setAssignedItems({});
@@ -500,11 +628,11 @@ export default memo(function Transactions() {
       fetchTransactions(page);
       notifyTransactionsChanged();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to save");
+      showSnackbar(err.response?.data?.message || 'Failed to save assigned units.', 'error');
     }
   };
 
-  const canEditItems = selectedTransaction && ['pending', 'borrowed'].includes(selectedTransaction.status);
+  const canEditItems = selectedTransaction?.status === 'pending';
 
   // ==================== RENDER ====================
   return (
@@ -616,35 +744,42 @@ export default memo(function Transactions() {
                   </TableCell>
                   <TableCell>
                     <Chip
-                      icon={getStatusIcon(t.status)}
-                      label={t.status?.toUpperCase()}
-                      color={getStatusColor(t.status)}
+                      icon={getStatusIcon(getStage(t))}
+                      label={getStatusLabel(t).toUpperCase()}
+                      color={getStatusColor(getStage(t))}
                       size="small"
                     />
+                    {t.status === 'borrowed' && t.issued_count > 0 && (
+                      <Box sx={{ mt: 1, minWidth: 120 }}>
+                        <LinearProgress variant="determinate" value={returnProgress(t.issued_count, t.returned_count)} />
+                        <Typography variant="caption" color="text.secondary">
+                          {t.returned_count}/{t.issued_count} returned
+                        </Typography>
+                      </Box>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                       {t.status === 'pending' && (
                         <>
-                          <Button size="small" variant="contained" color="success" onClick={() => handleAccept(t.id)}>Accept</Button>
-                          <Button size="small" variant="outlined" color="error" onClick={() => handleDecline(t.id)}>Decline</Button>
+                          <Button size="small" variant="contained" color="success" onClick={() => handleAccept(t)}>Approve</Button>
+                          <Button size="small" variant="outlined" color="error" onClick={() => handleDecline(t.id)}>Reject</Button>
                         </>
                       )}
-                      {t.status === 'borrowed' && (
-                        <Button size="small" variant="contained" color="primary" onClick={() => handleReturn(t.id)}>Return</Button>
+                      {t.status === 'approved' && (
+                        <Button size="small" variant="contained" startIcon={<LocalShippingOutlined />} onClick={() => openIssueDialog(t)}>
+                          Issue
+                        </Button>
                       )}
-                      {['pending', 'borrowed'].includes(t.status) && (
+                      {t.status === 'borrowed' && (
+                        <Button size="small" variant="contained" color="primary" startIcon={<AssignmentTurnedInOutlined />} onClick={() => openReturnDialog(t)}>
+                          Return units
+                        </Button>
+                      )}
+                      {t.status === 'pending' && (
                         <IconButton size="small" onClick={() => handleOpen(t)}>
                           <Edit />
                         </IconButton>
-                      )}
-
-                      {['rejected', 'returned'].includes(t.status) && (
-                        <Tooltip title="Edit Notes">
-                          <IconButton size="small" onClick={() => handleOpen(t)}>
-                            <Edit />
-                          </IconButton>
-                        </Tooltip>
                       )}
                     </Box>
                   </TableCell>
@@ -885,14 +1020,27 @@ export default memo(function Transactions() {
                 <Box sx={{ py: 2 }}>
                   <Stack direction="row" spacing={2} alignItems="center">
                     <Typography variant="h6">{selectedTransaction.borrower_name}</Typography>
-                    {selectedTransaction.status === 'pending' && (
-                      <Chip icon={<HourglassEmpty />} label="PENDING" color="warning" size="small" />
-                    )}
+                    <Chip
+                      icon={getStatusIcon(getStage(selectedTransaction))}
+                      label={getStatusLabel(selectedTransaction).toUpperCase()}
+                      color={getStatusColor(getStage(selectedTransaction))}
+                      size="small"
+                    />
                   </Stack>
                   <Typography color="text.secondary" gutterBottom>
                     {selectedTransaction.laboratory?.name || "Unknown Lab"} • {format(new Date(selectedTransaction.borrow_date), "dd MMM yyyy")}
                     {selectedTransaction.return_date && ` → ${format(new Date(selectedTransaction.return_date), "dd MMM yyyy")}`}
                   </Typography>
+
+                  {selectedTransaction.issued_count > 0 && (
+                    <Box sx={{ mt: 2, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                      <Stack direction="row" justifyContent="space-between" mb={1}>
+                        <Typography variant="body2" fontWeight={700}>Return progress</Typography>
+                        <Typography variant="body2">{selectedTransaction.returned_count} of {selectedTransaction.issued_count} units</Typography>
+                      </Stack>
+                      <LinearProgress variant="determinate" value={returnProgress(selectedTransaction.issued_count, selectedTransaction.returned_count)} />
+                    </Box>
+                  )}
 
                   <Box sx={{ mt: 4 }}>
                     {selectedTransaction.equipment.map(eq => (
@@ -906,14 +1054,13 @@ export default memo(function Transactions() {
                         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
                           {eq.items?.length > 0 ? (
                             eq.items.map(item => (
-                              <Chip
-                                key={item.id}
-                                label={item.unit_id}
-                                size="small"
-                                color={selectedTransaction.status === 'pending' ? "default" : "primary"}
-                                variant="outlined"
-                                sx={{ fontFamily: "monospace", fontWeight: "bold" }}
-                              />
+                              <Box key={item.id} sx={{ p: 1.25, border: '1px solid', borderColor: item.returned_at ? 'success.light' : 'divider', borderRadius: 1.5, minWidth: 185 }}>
+                                <Typography variant="body2" fontFamily="monospace" fontWeight={800}>{item.unit_id}</Typography>
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  {item.returned_at ? `Returned • ${item.condition_at_return || item.condition}` : item.issued_at ? `Issued • ${item.condition_at_issue || item.condition}` : `Reserved • ${item.condition}`}
+                                </Typography>
+                                {item.return_notes && <Typography variant="caption" color="warning.dark" display="block">{item.return_notes}</Typography>}
+                              </Box>
                             ))
                           ) : (
                             <Typography variant="body2" color="text.secondary">
@@ -1151,6 +1298,177 @@ export default memo(function Transactions() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* APPROVAL DIALOG */}
+      <Dialog open={approvalDialog.open} onClose={() => !approvalDialog.busy && setApprovalDialog(prev => ({ ...prev, open: false }))} maxWidth="sm" fullWidth>
+        <DialogTitle>Approve request for pickup</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Alert severity="info">Approval keeps every assigned unit reserved. Equipment is not considered borrowed until all units are checked during handover.</Alert>
+            <TextField
+              fullWidth
+              required
+              type="date"
+              label="Due date"
+              value={approvalDialog.dueDate}
+              onChange={event => setApprovalDialog(prev => ({ ...prev, dueDate: event.target.value, error: '' }))}
+              InputLabelProps={{ shrink: true }}
+              inputProps={{ min: format(new Date(), 'yyyy-MM-dd') }}
+            />
+            {approvalDialog.error && <Alert severity="error">{approvalDialog.error}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setApprovalDialog(prev => ({ ...prev, open: false }))} disabled={approvalDialog.busy}>Cancel</Button>
+          <Button variant="contained" color="success" onClick={confirmApproval} disabled={approvalDialog.busy || !approvalDialog.dueDate}>
+            {approvalDialog.busy ? <CircularProgress size={20} /> : 'Approve request'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ISSUE DIALOG */}
+      <Dialog open={issueDialog.open} onClose={() => !issueDialog.busy && setIssueDialog(prev => ({ ...prev, open: false }))} maxWidth="md" fullWidth fullScreen={isMobile}>
+        <DialogTitle>Issue equipment • Request #{issueDialog.transaction?.id}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2.5}>
+            <Alert severity="info">Scan or check every assigned unit. The handover is recorded only when the set is complete.</Alert>
+            <QrUnitScanner onScan={addIssueScan} disabled={issueDialog.busy} />
+            <Box>
+              <Stack direction="row" justifyContent="space-between" mb={1}>
+                <Typography fontWeight={800}>Assigned-unit checklist</Typography>
+                <Typography variant="body2" color="text.secondary">{issueDialog.scanned.length}/{assignedUnits(issueDialog.transaction).length} checked</Typography>
+              </Stack>
+              <LinearProgress
+                variant="determinate"
+                value={assignedUnits(issueDialog.transaction).length ? (issueDialog.scanned.length / assignedUnits(issueDialog.transaction).length) * 100 : 0}
+                sx={{ mb: 1.5 }}
+              />
+              <Stack spacing={1}>
+                {assignedUnits(issueDialog.transaction).map(item => (
+                  <Paper key={item.unit_id} variant="outlined" sx={{ px: 1.5, py: 1 }}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Checkbox
+                        checked={issueDialog.scanned.includes(item.unit_id)}
+                        disabled={issueDialog.busy}
+                        onChange={() => setIssueDialog(prev => ({
+                          ...prev,
+                          scanned: prev.scanned.includes(item.unit_id)
+                            ? prev.scanned.filter(id => id !== item.unit_id)
+                            : [...prev.scanned, item.unit_id],
+                          error: '',
+                        }))}
+                      />
+                      <Box flex={1}>
+                        <Typography fontFamily="monospace" fontWeight={800}>{item.unit_id}</Typography>
+                        <Typography variant="caption" color="text.secondary">{item.equipmentName} • issue condition: {item.condition}</Typography>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            </Box>
+            <TextField fullWidth multiline minRows={2} label="Handover notes (optional)" value={issueDialog.notes} onChange={event => setIssueDialog(prev => ({ ...prev, notes: event.target.value }))} />
+            {issueDialog.error && <Alert severity="error">{issueDialog.error}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setIssueDialog(prev => ({ ...prev, open: false }))} disabled={issueDialog.busy}>Cancel</Button>
+          <Button
+            variant="contained"
+            startIcon={!issueDialog.busy && <LocalShippingOutlined />}
+            onClick={confirmIssue}
+            disabled={issueDialog.busy || issueDialog.scanned.length !== assignedUnits(issueDialog.transaction).length}
+          >
+            {issueDialog.busy ? <CircularProgress size={20} /> : 'Confirm handover'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* PARTIAL RETURN DIALOG */}
+      <Dialog open={returnDialog.open} onClose={() => !returnDialog.busy && setReturnDialog(prev => ({ ...prev, open: false }))} maxWidth="md" fullWidth fullScreen={isMobile}>
+        <DialogTitle>Return issued units • Request #{returnDialog.transaction?.id}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2.5}>
+            <Alert severity="info">Choose any units being returned now. Each unit becomes available immediately unless its recorded condition prevents use.</Alert>
+            <QrUnitScanner onScan={addReturnScan} disabled={returnDialog.busy} />
+            <Divider />
+            <Typography fontWeight={800}>Outstanding units</Typography>
+            {assignedUnits(returnDialog.transaction).filter(item => item.issued_at && !item.returned_at).map(item => {
+              const selected = Boolean(returnDialog.selected[item.unit_id]);
+              const details = returnDialog.details[item.unit_id] || { condition: '', notes: '' };
+              return (
+                <Paper key={item.unit_id} variant="outlined" sx={{ p: 2, borderColor: selected ? 'primary.main' : 'divider' }}>
+                  <Stack spacing={1.5}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Checkbox
+                        checked={selected}
+                        onChange={event => setReturnDialog(prev => ({ ...prev, selected: { ...prev.selected, [item.unit_id]: event.target.checked }, error: '' }))}
+                      />
+                      <Box>
+                        <Typography fontFamily="monospace" fontWeight={800}>{item.unit_id}</Typography>
+                        <Typography variant="caption" color="text.secondary">{item.equipmentName} • issued as {item.condition_at_issue || item.condition}</Typography>
+                      </Box>
+                    </Stack>
+                    {selected && (
+                      <Grid container spacing={1.5}>
+                        <Grid item xs={12} sm={4}>
+                          <FormControl fullWidth required size="small">
+                            <InputLabel>Return condition</InputLabel>
+                            <Select
+                              value={details.condition}
+                              label="Return condition"
+                              onChange={event => setReturnDialog(prev => ({
+                                ...prev,
+                                details: { ...prev.details, [item.unit_id]: { ...details, condition: event.target.value } },
+                                error: '',
+                              }))}
+                            >
+                              {['New', 'Good', 'Fair', 'Poor', 'Damaged', 'Missing', 'Under Repair'].map(condition => <MenuItem key={condition} value={condition}>{condition}</MenuItem>)}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12} sm={8}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            required={['Damaged', 'Missing', 'Under Repair'].includes(details.condition)}
+                            label="Return notes"
+                            value={details.notes}
+                            onChange={event => setReturnDialog(prev => ({
+                              ...prev,
+                              details: { ...prev.details, [item.unit_id]: { ...details, notes: event.target.value } },
+                              error: '',
+                            }))}
+                            placeholder="Required for damaged, missing, or repair-needed units"
+                          />
+                        </Grid>
+                      </Grid>
+                    )}
+                  </Stack>
+                </Paper>
+              );
+            })}
+            {returnDialog.error && <Alert severity="error">{returnDialog.error}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setReturnDialog(prev => ({ ...prev, open: false }))} disabled={returnDialog.busy}>Cancel</Button>
+          <Button variant="contained" onClick={confirmPartialReturn} disabled={returnDialog.busy || !Object.values(returnDialog.selected).some(Boolean)}>
+            {returnDialog.busy ? <CircularProgress size={20} /> : 'Record selected returns'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4500}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} variant="filled" onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 });

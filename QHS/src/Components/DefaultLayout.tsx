@@ -6,6 +6,7 @@ import BiotechIcon from '@mui/icons-material/Biotech';
 import CategoryIcon from '@mui/icons-material/Category';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import DescriptionIcon from '@mui/icons-material/Description';
+import EngineeringIcon from '@mui/icons-material/Engineering';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import PeopleIcon from '@mui/icons-material/People';
 import ScienceIcon from '@mui/icons-material/Science';
@@ -20,6 +21,7 @@ const titleFor = (pathname: string) => {
   const titles: ReadonlyArray<readonly [string, string]> = [
     ['/admin/transaction-reports', 'Transaction reports'],
     ['/admin/transactions', 'Borrowing transactions'],
+    ['/admin/maintenance', 'Maintenance & calibration'],
     ['/admin/equipment', 'Equipment & units'],
     ['/admin/category', 'Equipment categories'],
     ['/admin/inventory', 'Inventory reports'],
@@ -40,6 +42,7 @@ const navSections: StaffNavigationSection[] = [
       { label: 'Laboratories', to: '/admin/lab', icon: <ScienceIcon fontSize="small" /> },
       { label: 'Equipment', to: '/admin/equipment', icon: <BiotechIcon fontSize="small" /> },
       { label: 'Transactions', to: '/admin/transactions', icon: <SwapHorizIcon fontSize="small" /> },
+      { label: 'Maintenance', to: '/admin/maintenance', icon: <EngineeringIcon fontSize="small" /> },
     ],
   },
   {

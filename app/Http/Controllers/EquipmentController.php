@@ -58,6 +58,12 @@ class EquipmentController extends Controller
 
     public function show(Request $request, Equipment $equipment)
     {
+        if ($request->user()->role === 'user' && (
+            ! $equipment->isActive || ! $equipment->laboratory()->value('isActive')
+        )) {
+            abort(404);
+        }
+
         $this->authorize('view', $equipment);
 
         return new EquipmentResource($equipment->load(['categories:id,name', 'items']));

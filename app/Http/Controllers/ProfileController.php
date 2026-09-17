@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
@@ -71,7 +72,12 @@ class ProfileController extends Controller
         $user->update([
             'password' => Hash::make($validated['new_password']),
         ]);
-        $user->tokens()->whereKeyNot($user->currentAccessToken()?->id)->delete();
+        $user->tokens()->delete();
+
+        if ($request->hasSession()) {
+            Auth::guard('web')->login($user->fresh());
+            $request->session()->regenerate();
+        }
 
         return response()->json([
             'message' => 'Password updated successfully',

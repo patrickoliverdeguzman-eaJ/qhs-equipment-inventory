@@ -15,7 +15,10 @@ class EquipmentPolicy
     public function view(User $user, Equipment $equipment): bool
     {
         if ($user->isAdmin() || $user->role === 'user') {
-            return $user->isAdmin() || (bool) $equipment->isActive;
+            return $user->isAdmin() || (
+                (bool) $equipment->isActive
+                && (bool) $equipment->laboratory()->value('isActive')
+            );
         }
 
         return $user->managesLaboratory($equipment->laboratory_id);

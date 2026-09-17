@@ -15,8 +15,23 @@ class EquipmentImportController extends Controller
 {
     use ActionLogger;
 
+    private const MAX_ROWS = 500;
+
+    private const MAX_TOTAL_UNITS = 5000;
+
+    private const MAX_REQUEST_BYTES = 2_000_000;
+
     public function import(Request $request)
     {
+        $contentLength = (int) $request->server('CONTENT_LENGTH', 0);
+
+        if ($contentLength > self::MAX_REQUEST_BYTES) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Import requests are limited to 2 MB.',
+            ], 413);
+        }
+
         $data = $request->input('data', []);
         if (empty($data) || ! is_array($data)) {
             return response()->json([
@@ -25,10 +40,29 @@ class EquipmentImportController extends Controller
             ], 400);
         }
 
-        if (count($data) > 500) {
+        if (count($data) > self::MAX_ROWS) {
             return response()->json([
                 'success' => false,
-                'message' => 'Import files are limited to 500 rows.',
+                'message' => 'Import files are limited to '.self::MAX_ROWS.' rows.',
+            ], 422);
+        }
+
+        $requestedUnits = collect($data)->sum(function ($row): int {
+            if (! is_array($row)) {
+                return 0;
+            }
+
+            $quantity = filter_var($row['quantity'] ?? null, FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 1, 'max_range' => 1000],
+            ]);
+
+            return $quantity === false ? 0 : $quantity;
+        });
+
+        if ($requestedUnits > self::MAX_TOTAL_UNITS) {
+            return response()->json([
+                'success' => false,
+                'message' => 'One import can create at most '.self::MAX_TOTAL_UNITS.' inventory units.',
             ], 422);
         }
 
@@ -50,10 +84,20 @@ class EquipmentImportController extends Controller
             foreach ($data as $index => $row) {
                 $rowNumber = $index + 2; // Excel row (1-based + header)
 
+                if (! is_array($row)) {
+                    $failed[] = [
+                        'row' => $rowNumber,
+                        'data' => $row,
+                        'errors' => ['Each import row must be an object.'],
+                    ];
+
+                    continue;
+                }
+
                 // Normalize input
                 $payload = [
-                    'name' => trim($row['name'] ?? ''),
-                    'description' => trim($row['description'] ?? ''),
+                    'name' => is_scalar($row['name'] ?? null) ? trim((string) $row['name']) : $row['name'] ?? null,
+                    'description' => is_scalar($row['description'] ?? null) ? trim((string) $row['description']) : $row['description'] ?? null,
                     // Custodians: always force their own lab; admins: use value from file
                     'laboratory_id' => $custodianLabId ?? (int) ($row['laboratory_id'] ?? 0),
                     'quantity' => (int) ($row['quantity'] ?? 0),
@@ -72,10 +116,11 @@ class EquipmentImportController extends Controller
                 // Validation
                 $validator = Validator::make($payload, [
                     'name' => 'required|string|max:255',
+                    'description' => 'nullable|string|max:2000',
                     'laboratory_id' => 'required|exists:laboratories,id',
                     'quantity' => 'required|integer|min:1|max:1000',
                     'isActive' => 'boolean',
-                    'category_ids' => 'nullable|array',
+                    'category_ids' => 'nullable|array|max:50',
                     'category_ids.*' => 'exists:categories,id',
                 ]);
 
@@ -103,14 +148,23 @@ class EquipmentImportController extends Controller
                     $equipment->categories()->sync($payload['category_ids']);
                 }
 
-                // Create Equipment Items
+                // Insert unit records in bounded chunks instead of issuing one query per unit.
+                $now = now();
+                $items = [];
+
                 for ($i = 1; $i <= $payload['quantity']; $i++) {
-                    EquipmentItem::create([
+                    $items[] = [
                         'equipment_id' => $equipment->id,
-                        'unit_id' => EquipmentItem::generateUnitId($equipment->id),
+                        'unit_id' => sprintf('EQ%02d-%04d', $equipment->id, $i),
                         'condition' => 'Good',
                         'isBorrowed' => false,
-                    ]);
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+
+                foreach (array_chunk($items, 500) as $chunk) {
+                    EquipmentItem::query()->insert($chunk);
                 }
 
                 $success[] = [

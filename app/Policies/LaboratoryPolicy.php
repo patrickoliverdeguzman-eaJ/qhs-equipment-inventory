@@ -15,7 +15,7 @@ class LaboratoryPolicy
     public function view(User $user, Laboratory $laboratory): bool
     {
         return $user->isAdmin()
-            || $user->role === 'user'
+            || ($user->role === 'user' && (bool) $laboratory->isActive)
             || $user->managesLaboratory($laboratory->id);
     }
 

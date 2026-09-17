@@ -7,7 +7,7 @@ import type { AppUser } from '../types/domain';
 
 interface LoginResponse {
   user: AppUser;
-  token: string;
+  session_authenticated: true;
   redirectUrl?: string;
 }
 
@@ -30,7 +30,7 @@ export default function Login() {
     try {
       const { data } = await axiosClient.post<LoginResponse>('/login', form);
       setUser(data.user);
-      setToken(data.token);
+      setToken('session');
       const requested = new URLSearchParams(location.search).get('next');
       const safeNext = requested?.startsWith('/') && !requested.startsWith('//') ? requested : null;
       navigate(safeNext || data.redirectUrl || '/', { replace: true });
