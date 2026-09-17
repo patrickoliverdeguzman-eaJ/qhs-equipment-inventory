@@ -26,12 +26,13 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
+import WifiTetheringIcon from '@mui/icons-material/WifiTethering';
 import { assetUrl } from '../axiosClient';
 import { getInitials } from '../utils';
 import qhsMark from '../assets/qhs-mark.svg';
 import type { AppUser } from '../types/domain';
 
-const drawerWidth = 264;
+const drawerWidth = 280;
 
 function StaffClock() {
   const [now, setNow] = useState(() => new Date());
@@ -42,8 +43,8 @@ function StaffClock() {
   }, []);
 
   return (
-    <Box sx={{ display: { xs: 'none', sm: 'block' }, textAlign: 'right', mr: 0.5 }}>
-      <Typography variant="body2" fontWeight={750} lineHeight={1.15}>
+    <Box sx={{ display: { xs: 'none', sm: 'block' }, textAlign: 'right', mr: 0.75 }}>
+      <Typography variant="body2" fontWeight={760} lineHeight={1.15}>
         {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
       </Typography>
       <Typography variant="caption" color="text.secondary" lineHeight={1.15}>
@@ -96,38 +97,38 @@ export default function StaffShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const drawerContent = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Stack direction="row" alignItems="center" spacing={1.35} sx={{ minHeight: 76, px: 2.25 }}>
-        <Box sx={{ display: 'grid', width: 42, height: 42, placeItems: 'center', borderRadius: 2.25, bgcolor: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.1)', flexShrink: 0 }}>
-          <Box component="img" src={qhsMark} alt="" sx={{ width: 34, height: 34 }} />
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', zIndex: 1 }}>
+      <Stack direction="row" alignItems="center" spacing={1.35} sx={{ minHeight: 84, px: 2.25 }}>
+        <Box sx={{ display: 'grid', width: 44, height: 44, placeItems: 'center', borderRadius: 2.5, bgcolor: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.13)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.08)', flexShrink: 0 }}>
+          <Box component="img" src={qhsMark} alt="" sx={{ width: 35, height: 35 }} />
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography color="common.white" fontWeight={800} fontSize="0.93rem" lineHeight={1.15}>
-            Quirino High School
+          <Typography color="common.white" fontWeight={800} fontSize="0.94rem" letterSpacing="-.01em" lineHeight={1.15}>
+            QHS Inventory
           </Typography>
-          <Typography sx={{ color: 'rgba(255,255,255,.62)', fontSize: '0.72rem' }}>
-            Equipment inventory
+          <Typography sx={{ mt: 0.25, color: 'rgba(255,255,255,.6)', fontSize: '0.69rem', letterSpacing: '.02em' }}>
+            Equipment operations
           </Typography>
         </Box>
       </Stack>
 
-      <Box sx={{ mx: 1.25, mb: 1.4, p: 1.4, borderRadius: 2.25, bgcolor: 'rgba(255,255,255,.055)', border: '1px solid rgba(255,255,255,.075)' }}>
+      <Box sx={{ mx: 1.25, mb: 1.35, p: 1.5, borderRadius: 2.75, bgcolor: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.095)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.04)' }}>
         <Stack direction="row" spacing={1.25} alignItems="center">
           <Avatar
             src={user?.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined}
             alt={user?.name || 'Account'}
-            sx={{ width: 38, height: 38, bgcolor: 'secondary.main', color: 'secondary.contrastText', fontWeight: 800 }}
+            sx={{ width: 40, height: 40, bgcolor: '#D19A3E', color: '#2B1800', fontWeight: 820, border: '2px solid rgba(255,255,255,.12)' }}
           >
             {getInitials(user?.name)}
           </Avatar>
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography color="common.white" fontWeight={700} noWrap fontSize="0.86rem">
+            <Typography color="common.white" fontWeight={740} noWrap fontSize="0.87rem">
               {user?.name || 'Loading account…'}
             </Typography>
             <Chip
               label={roleLabel}
               size="small"
-              sx={{ mt: 0.45, height: 21, bgcolor: 'rgba(232,188,114,.16)', color: '#F2CB88', fontSize: '0.66rem' }}
+              sx={{ mt: 0.45, height: 22, bgcolor: 'rgba(232,187,105,.15)', color: '#F5D99F', border: '1px solid rgba(232,187,105,.12)', fontSize: '0.64rem' }}
             />
           </Box>
         </Stack>
@@ -146,9 +147,9 @@ export default function StaffShell({
         }}
       >
         {navSections.map((section) => (
-          <Box key={section.label} sx={{ mb: 1.4 }}>
+          <Box key={section.label} sx={{ mb: 1.55 }}>
             <Typography
-              sx={{ px: 1.5, pt: 1, pb: 0.7, color: 'rgba(255,255,255,.46)', fontSize: '0.66rem', fontWeight: 800, letterSpacing: '.11em', textTransform: 'uppercase' }}
+              sx={{ px: 1.45, pt: 1, pb: 0.75, color: 'rgba(255,255,255,.42)', fontSize: '0.63rem', fontWeight: 820, letterSpacing: '.14em', textTransform: 'uppercase' }}
             >
               {section.label}
             </Typography>
@@ -165,23 +166,26 @@ export default function StaffShell({
                       selected={selected}
                       onClick={() => setMobileOpen(false)}
                       sx={{
-                        minHeight: 43,
-                        borderRadius: 1.75,
-                        color: 'rgba(255,255,255,.76)',
+                        minHeight: 44,
+                        borderRadius: 2.15,
+                        px: 1.4,
+                        color: 'rgba(255,255,255,.72)',
                         position: 'relative',
                         '& .MuiListItemIcon-root': { color: 'inherit' },
-                        '&:hover': { bgcolor: 'rgba(255,255,255,.075)', color: 'common.white' },
+                        '&:hover': { bgcolor: 'rgba(255,255,255,.075)', color: 'common.white', transform: 'translateX(2px)' },
+                        transition: 'background-color .18s ease, color .18s ease, transform .18s ease',
                         '&.Mui-selected': {
-                          bgcolor: 'rgba(255,255,255,.1)',
-                          color: '#F5D49B',
-                          '&::before': { position: 'absolute', left: 0, top: 10, bottom: 10, width: 3, borderRadius: '0 4px 4px 0', bgcolor: '#E8BC72', content: '""' },
-                          '&:hover': { bgcolor: 'rgba(255,255,255,.13)' },
+                          bgcolor: 'rgba(255,255,255,.11)',
+                          color: '#FFE3B2',
+                          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.04)',
+                          '&::before': { position: 'absolute', left: 0, top: 9, bottom: 9, width: 3, borderRadius: '0 4px 4px 0', bgcolor: '#E9B75E', content: '""' },
+                          '&:hover': { bgcolor: 'rgba(255,255,255,.14)' },
                         },
                         '&.Mui-disabled': { color: 'rgba(255,255,255,.28)' },
                       }}
                     >
-                      <ListItemIcon sx={{ minWidth: 38 }}>{item.icon}</ListItemIcon>
-                      <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: '0.86rem', fontWeight: selected ? 750 : 600 }} />
+                      <ListItemIcon sx={{ minWidth: 39, '& svg': { fontSize: 20 } }}>{item.icon}</ListItemIcon>
+                      <ListItemText primary={item.label} primaryTypographyProps={{ fontSize: '0.855rem', fontWeight: selected ? 760 : 610 }} />
                     </ListItemButton>
                   </ListItem>
                 );
@@ -192,11 +196,17 @@ export default function StaffShell({
       </Box>
 
       <Divider sx={{ borderColor: 'rgba(255,255,255,.09)' }} />
+      <Box sx={{ px: 2.5, pt: 1.4 }}>
+        <Stack direction="row" spacing={0.8} alignItems="center">
+          <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#67D59C', boxShadow: '0 0 0 4px rgba(103,213,156,.1)' }} />
+          <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: '0.67rem', fontWeight: 650 }}>System connected</Typography>
+        </Stack>
+      </Box>
       <List sx={{ p: 1.25 }}>
         <ListItem disablePadding>
           <ListItemButton
             onClick={onLogout}
-            sx={{ minHeight: 44, borderRadius: 1.75, color: 'rgba(255,255,255,.75)', '&:hover': { bgcolor: 'rgba(255,255,255,.075)', color: 'common.white' } }}
+            sx={{ minHeight: 44, borderRadius: 2.15, color: 'rgba(255,255,255,.72)', '&:hover': { bgcolor: 'rgba(255,255,255,.075)', color: 'common.white' } }}
           >
             <ListItemIcon sx={{ minWidth: 38, color: 'inherit' }}><LogoutIcon /></ListItemIcon>
             <ListItemText primary="Sign out" primaryTypographyProps={{ fontSize: '0.86rem', fontWeight: 650 }} />
@@ -216,23 +226,30 @@ export default function StaffShell({
           sx={{
             width: { md: `calc(100% - ${drawerWidth}px)` },
             ml: { md: `${drawerWidth}px` },
-            bgcolor: 'rgba(250,249,247,.92)',
+            bgcolor: 'rgba(255,255,255,.86)',
             color: 'text.primary',
-            backdropFilter: 'blur(14px)',
+            backdropFilter: 'blur(18px) saturate(140%)',
             zIndex: (value) => value.zIndex.drawer - 1,
-            ...(mode === 'dark' && { bgcolor: 'rgba(33,29,31,.9)' }),
+            ...(mode === 'dark' && { bgcolor: 'rgba(29,32,38,.88)' }),
           }}
         >
-          <Toolbar sx={{ gap: { xs: 0.75, sm: 1.25 }, px: { xs: 1.5, sm: 3 } }}>
+          <Toolbar sx={{ gap: { xs: 0.75, sm: 1.2 }, px: { xs: 1.5, sm: 3.25 } }}>
             <IconButton aria-label="Open navigation" onClick={() => setMobileOpen(true)} sx={{ display: { md: 'none' } }}>
               <MenuIcon />
             </IconButton>
             <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-              <Typography component="h1" variant="h6" noWrap>{title}</Typography>
+              <Typography component="h1" variant="h6" noWrap sx={{ fontSize: { xs: '1rem', sm: '1.08rem' } }}>{title}</Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
-                Quirino High School · {roleLabel} workspace
+                Quirino High School / {roleLabel} workspace
               </Typography>
             </Box>
+            <Chip
+              icon={<WifiTetheringIcon />}
+              label="Live inventory"
+              size="small"
+              variant="outlined"
+              sx={{ display: { xs: 'none', lg: 'inline-flex' }, color: 'success.main', borderColor: 'success.main', bgcolor: 'success.50', '& .MuiChip-icon': { color: 'inherit', fontSize: 15 } }}
+            />
             <StaffClock />
             {extraActions}
             <Tooltip title={mode === 'light' ? 'Use dark theme' : 'Use light theme'}>
@@ -244,7 +261,7 @@ export default function StaffShell({
               <Avatar
                 src={user?.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined}
                 alt={user?.name || 'Account'}
-                sx={{ width: 38, height: 38, bgcolor: 'primary.main', fontSize: '0.82rem', fontWeight: 800 }}
+                sx={{ width: 38, height: 38, bgcolor: 'primary.main', fontSize: '0.82rem', fontWeight: 800, border: '2px solid', borderColor: 'background.paper', boxShadow: '0 0 0 1px', color: 'primary.contrastText' }}
               >
                 {getInitials(user?.name)}
               </Avatar>
@@ -263,9 +280,21 @@ export default function StaffShell({
                 width: drawerWidth,
                 boxSizing: 'border-box',
                 border: 0,
-                bgcolor: '#421321',
-                backgroundImage: 'none',
+                bgcolor: '#350A18',
+                backgroundImage: 'radial-gradient(circle at 25% -5%, rgba(210,151,66,.17), transparent 22rem), linear-gradient(180deg, #350A18 0%, #501126 58%, #2B0914 100%)',
                 color: 'common.white',
+                overflowX: 'hidden',
+                '&::after': {
+                  position: 'absolute',
+                  right: -110,
+                  bottom: 80,
+                  width: 240,
+                  height: 240,
+                  border: '1px solid rgba(255,255,255,.045)',
+                  borderRadius: '50%',
+                  content: '""',
+                  pointerEvents: 'none',
+                },
               },
             }}
           >
@@ -273,7 +302,7 @@ export default function StaffShell({
           </Drawer>
         </Box>
 
-        <Box component="main" sx={{ flexGrow: 1, minWidth: 0, width: { md: `calc(100% - ${drawerWidth}px)` } }}>
+        <Box component="main" sx={{ flexGrow: 1, minWidth: 0, width: { md: `calc(100% - ${drawerWidth}px)` }, position: 'relative' }}>
           <Toolbar />
           <Box className="staff-content">{children}</Box>
         </Box>

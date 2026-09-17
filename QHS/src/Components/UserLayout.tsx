@@ -255,48 +255,56 @@ export default function UserLayout() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar position="sticky" color="inherit" sx={{ bgcolor: 'rgba(255,255,255,.94)', backdropFilter: 'blur(16px)' }}>
+      <AppBar
+        position="sticky"
+        color="inherit"
+        sx={{
+          bgcolor: 'rgba(255,255,255,.88)',
+          backdropFilter: 'blur(18px) saturate(140%)',
+          boxShadow: '0 1px 0 rgba(24,33,43,.02)',
+        }}
+      >
         <Container maxWidth="xl">
-          <Toolbar disableGutters sx={{ minHeight: { xs: 64, md: 72 }, gap: { xs: 0.5, md: 2 } }}>
-            <IconButton color="inherit" aria-label="Open navigation" onClick={(event) => setAnchorElNav(event.currentTarget)} sx={{ display: { md: 'none' } }}>
+          <Toolbar disableGutters sx={{ minHeight: { xs: 68, md: 78 }, gap: { xs: 0.5, md: 2 } }}>
+            <IconButton color="inherit" aria-label="Open navigation" onClick={(event) => setAnchorElNav(event.currentTarget)} sx={{ display: { md: 'none' }, mr: 0.25 }}>
               <MenuIcon />
             </IconButton>
 
             <Stack component={Link} to="/" direction="row" spacing={1.25} alignItems="center" sx={{ color: 'inherit', textDecoration: 'none', flexGrow: { xs: 1, md: 0 } }}>
-              <Box sx={{ display: 'grid', width: 40, height: 40, placeItems: 'center', borderRadius: 2, bgcolor: 'primary.main' }}>
-                <Box component="img" src={qhsMark} alt="" sx={{ width: 33, height: 33 }} />
+              <Box sx={{ display: 'grid', width: 43, height: 43, placeItems: 'center', borderRadius: 2.4, bgcolor: 'primary.dark', boxShadow: '0 7px 18px rgba(53,10,24,.16)' }}>
+                <Box component="img" src={qhsMark} alt="" sx={{ width: 35, height: 35 }} />
               </Box>
               <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-                <Typography fontWeight={820} fontSize="0.9rem" lineHeight={1.15}>QHS Inventory</Typography>
-                <Typography color="text.secondary" fontSize="0.68rem">Student equipment portal</Typography>
+                <Typography fontWeight={820} fontSize="0.9rem" letterSpacing="-.015em" lineHeight={1.15}>QHS Inventory</Typography>
+                <Typography color="text.secondary" fontSize="0.67rem" sx={{ mt: 0.25 }}>Student equipment portal</Typography>
               </Box>
             </Stack>
 
-            <Stack component="nav" aria-label="Primary navigation" direction="row" spacing={0.5} sx={{ display: { xs: 'none', md: 'flex' }, flexGrow: 1, ml: 2 }}>
+            <Stack component="nav" aria-label="Primary navigation" direction="row" spacing={0.35} sx={{ display: { xs: 'none', md: 'flex' }, flexGrow: 1, ml: 3 }}>
               {pages.map((page) => {
                 const active = page.link === '/' ? location.pathname === '/' : location.pathname.startsWith(page.link);
                 return (
-                  <Button component={NavLink} to={page.link} key={page.link} color="inherit" sx={{ minHeight: 38, px: 1.5, color: active ? 'primary.main' : 'text.secondary', bgcolor: active ? 'primary.50' : 'transparent', fontWeight: active ? 780 : 650, '&:hover': { bgcolor: active ? 'primary.50' : 'action.hover', color: 'text.primary' } }}>
+                  <Button component={NavLink} to={page.link} key={page.link} color="inherit" sx={{ minHeight: 38, px: 1.5, borderRadius: 2.25, color: active ? 'primary.main' : 'text.secondary', bgcolor: active ? 'primary.50' : 'transparent', fontWeight: active ? 780 : 650, '&:hover': { bgcolor: active ? 'primary.50' : 'action.hover', color: 'text.primary' } }}>
                     {page.name}
                   </Button>
                 );
               })}
             </Stack>
 
-            <Stack direction="row" spacing={0.25} alignItems="center">
+            <Stack direction="row" spacing={0.4} alignItems="center">
               <Tooltip title="Request updates">
-                <IconButton aria-label={`${unseenCount} unseen request updates`} onClick={handleOpenNotifications}>
+                <IconButton aria-label={`${unseenCount} unseen request updates`} onClick={handleOpenNotifications} sx={{ bgcolor: 'action.hover' }}>
                   <Badge badgeContent={unseenCount || pendingRequests} color="error" max={99}><NotificationsNoneIcon /></Badge>
                 </IconButton>
               </Tooltip>
               <Tooltip title="Equipment cart">
-                <IconButton aria-label={`${totalItems} items in cart`} onClick={() => setCartOpen(true)}>
+                <IconButton aria-label={`${totalItems} items in cart`} onClick={() => setCartOpen(true)} sx={{ bgcolor: 'action.hover' }}>
                   <Badge badgeContent={totalItems} color="primary" max={99}><ShoppingBagOutlinedIcon /></Badge>
                 </IconButton>
               </Tooltip>
               <Tooltip title="Account">
-                <IconButton onClick={(event) => setAnchorElUser(event.currentTarget)} sx={{ p: 0.5 }}>
-                  <Avatar src={user?.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined} alt={user?.name || 'Account'} sx={{ width: 34, height: 34, bgcolor: 'primary.main', fontSize: '0.76rem', fontWeight: 800 }}>
+                <IconButton onClick={(event) => setAnchorElUser(event.currentTarget)} sx={{ p: 0.35, ml: 0.25 }}>
+                  <Avatar src={user?.avatar ? assetUrl(`/storage/${user.avatar}`) : undefined} alt={user?.name || 'Account'} sx={{ width: 36, height: 36, bgcolor: 'primary.main', fontSize: '0.76rem', fontWeight: 800, border: '2px solid', borderColor: 'background.paper', boxShadow: '0 0 0 1px rgba(104,22,47,.15)' }}>
                     {getInitials(user?.name)}
                   </Avatar>
                 </IconButton>
@@ -333,7 +341,7 @@ export default function UserLayout() {
       </Menu>
 
       <Popover anchorEl={notificationAnchor} open={Boolean(notificationAnchor)} onClose={() => setNotificationAnchor(null)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
-        <Paper sx={{ width: 'min(390px, calc(100vw - 24px))', maxHeight: 520, overflow: 'hidden' }}>
+        <Paper sx={{ width: 'min(400px, calc(100vw - 24px))', maxHeight: 540, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 2.25, py: 1.75, borderBottom: 1, borderColor: 'divider' }}>
             <Box>
               <Typography variant="subtitle1" fontWeight={780}>Request updates</Typography>
@@ -386,7 +394,7 @@ export default function UserLayout() {
         </Paper>
       </Popover>
 
-      <Drawer anchor="right" open={cartOpen} onClose={() => setCartOpen(false)} PaperProps={{ sx: { width: { xs: '100%', sm: 440 }, maxWidth: '100vw' } }}>
+      <Drawer anchor="right" open={cartOpen} onClose={() => setCartOpen(false)} PaperProps={{ sx: { width: { xs: '100%', sm: 460 }, maxWidth: '100vw', borderLeft: '1px solid', borderColor: 'divider' } }}>
         <Stack sx={{ height: '100%' }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: { xs: 2, sm: 2.5 }, py: 2, borderBottom: 1, borderColor: 'divider' }}>
             <Box>
@@ -443,7 +451,15 @@ export default function UserLayout() {
         </Stack>
       </Drawer>
 
-      <Box component="main" sx={{ minHeight: 'calc(100vh - 73px)' }}><Outlet /></Box>
+      <Box
+        component="main"
+        sx={{
+          minHeight: 'calc(100vh - 79px)',
+          backgroundImage: 'radial-gradient(circle at 92% 2%, rgba(104,22,47,.04), transparent 26rem)',
+        }}
+      >
+        <Outlet />
+      </Box>
     </Box>
   );
 }

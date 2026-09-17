@@ -27,6 +27,8 @@ export function SectionCard({ children, sx, ...props }: SectionCardProps) {
         overflow: 'hidden',
         borderColor: 'divider',
         bgcolor: 'background.paper',
+        borderRadius: 3,
+        boxShadow: '0 1px 2px rgba(24,33,43,.025)',
       }, sx)}
     >
       {children}
@@ -49,16 +51,16 @@ export function SectionHeading({ action, description, icon, title, sx }: Section
       alignItems={{ xs: 'stretch', sm: 'center' }}
       justifyContent="space-between"
       spacing={1.5}
-      sx={mergeSx({ px: { xs: 2, sm: 2.5 }, py: 2, borderBottom: 1, borderColor: 'divider' }, sx)}
+      sx={mergeSx({ px: { xs: 2.25, sm: 3 }, py: 2.25, borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }, sx)}
     >
       <Stack direction="row" spacing={1.4} alignItems="center" sx={{ minWidth: 0 }}>
         {icon && (
-          <Box sx={{ display: 'grid', width: 36, height: 36, flexShrink: 0, placeItems: 'center', borderRadius: 2, bgcolor: 'primary.50', color: 'primary.main' }}>
+          <Box sx={{ display: 'grid', width: 40, height: 40, flexShrink: 0, placeItems: 'center', borderRadius: 2.25, bgcolor: 'primary.50', color: 'primary.main', border: '1px solid', borderColor: 'divider', '& svg': { fontSize: 21 } }}>
             {icon}
           </Box>
         )}
         <Box sx={{ minWidth: 0 }}>
-          <Typography component="h2" variant="subtitle1" fontWeight={780}>{title}</Typography>
+          <Typography component="h2" variant="subtitle1" fontWeight={770} letterSpacing="-.01em">{title}</Typography>
           {description && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.2 }}>{description}</Typography>}
         </Box>
       </Stack>
@@ -80,27 +82,41 @@ interface MetricCardProps {
 
 export function MetricCard({ icon, label, loading, tone = 'primary', value, helper }: MetricCardProps) {
   return (
-    <Paper variant="outlined" sx={{ height: '100%', p: { xs: 2, sm: 2.25 }, borderColor: 'divider' }}>
-      <Stack direction="row" spacing={1.6} alignItems="center">
+    <Paper
+      variant="outlined"
+      sx={{
+        position: 'relative',
+        height: '100%',
+        overflow: 'hidden',
+        p: { xs: 2.25, sm: 2.5 },
+        borderColor: 'divider',
+        transition: 'border-color .2s ease, transform .2s ease, box-shadow .2s ease',
+        '&::before': { position: 'absolute', inset: '0 auto 0 0', width: 4, bgcolor: `${tone}.main`, content: '""' },
+        '&:hover': { borderColor: `${tone}.main`, transform: 'translateY(-2px)', boxShadow: '0 12px 28px rgba(24,33,43,.07)' },
+      }}
+    >
+      <Stack direction="row" spacing={1.75} alignItems="center">
         <Box
           sx={{
             display: 'grid',
-            width: 42,
-            height: 42,
+            width: 46,
+            height: 46,
             flexShrink: 0,
             placeItems: 'center',
-            borderRadius: 2,
+            borderRadius: 2.4,
             bgcolor: `${tone}.50`,
             color: `${tone}.main`,
-            '& svg': { fontSize: 22 },
+            border: '1px solid',
+            borderColor: 'divider',
+            '& svg': { fontSize: 23 },
           }}
         >
           {icon}
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          {loading ? <Skeleton width={52} height={34} /> : <Typography variant="h5" lineHeight={1.1}>{value}</Typography>}
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>{label}</Typography>
-          {helper && <Typography variant="caption" color="text.secondary">{helper}</Typography>}
+          {loading ? <Skeleton width={52} height={34} /> : <Typography variant="h4" fontSize="1.65rem" lineHeight={1.05}>{value}</Typography>}
+          <Typography variant="body2" color="text.secondary" fontWeight={620} sx={{ mt: 0.45 }}>{label}</Typography>
+          {helper && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>{helper}</Typography>}
         </Box>
       </Stack>
     </Paper>
@@ -120,7 +136,7 @@ export function EmptyState({ action, description, icon, title = 'Nothing here ye
     <Box
       sx={mergeSx({
         display: 'grid',
-        minHeight: 220,
+        minHeight: 240,
         placeItems: 'center',
         px: 3,
         py: 6,
@@ -128,7 +144,7 @@ export function EmptyState({ action, description, icon, title = 'Nothing here ye
       }, sx)}
     >
       <Box sx={{ maxWidth: 430 }}>
-        <Box sx={{ display: 'grid', width: 52, height: 52, mx: 'auto', mb: 1.75, placeItems: 'center', borderRadius: 2.5, bgcolor: 'action.hover', color: 'text.secondary' }}>
+        <Box sx={{ display: 'grid', width: 56, height: 56, mx: 'auto', mb: 1.75, placeItems: 'center', borderRadius: 3, bgcolor: 'primary.50', color: 'primary.main', border: '1px solid', borderColor: 'divider' }}>
           {icon || <InboxOutlinedIcon />}
         </Box>
         <Typography variant="h6">{title}</Typography>
@@ -145,7 +161,7 @@ interface StatusPillProps extends Omit<ChipProps, 'color' | 'label' | 'variant'>
 }
 
 export function StatusPill({ label, tone = 'default', ...props }: StatusPillProps) {
-  return <Chip label={label} color={tone} size="small" variant={tone === 'default' ? 'outlined' : 'filled'} {...props} />;
+  return <Chip label={label} color={tone} size="small" variant={tone === 'default' ? 'outlined' : 'filled'} sx={{ px: 0.25 }} {...props} />;
 }
 
 interface DetailRowProps {
@@ -160,7 +176,7 @@ export function DetailRow({ label, value, divider = true }: DetailRowProps) {
       direction={{ xs: 'column', sm: 'row' }}
       justifyContent="space-between"
       spacing={0.5}
-      sx={{ py: 1.25, borderBottom: divider ? 1 : 0, borderColor: 'divider' }}
+      sx={{ py: 1.4, borderBottom: divider ? 1 : 0, borderColor: 'divider' }}
     >
       <Typography variant="body2" color="text.secondary">{label}</Typography>
       <Typography variant="body2" fontWeight={700} sx={{ textAlign: { sm: 'right' }, wordBreak: 'break-word' }}>{value ?? '—'}</Typography>
