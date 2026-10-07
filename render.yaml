@@ -54,19 +54,23 @@ services:
       - key: LOG_LEVEL
         value: warning
       - key: MAIL_MAILER
-        value: smtp
-      - key: MAIL_HOST
-        sync: false
-      - key: MAIL_PORT
-        value: "587"
-      - key: MAIL_USERNAME
-        sync: false
-      - key: MAIL_PASSWORD
+        value: resend
+      - key: RESEND_KEY
         sync: false
       - key: MAIL_FROM_ADDRESS
         sync: false
       - key: MAIL_FROM_NAME
         value: QHS Equipment Inventory
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_ENCRYPTION
+        value: tls
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
 
 databases:
   - name: qhs-equipment-inventory-db
