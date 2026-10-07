@@ -25,7 +25,7 @@ class UpdateLaboratoryRequest extends FormRequest
         return [
             'name' => 'sometimes|string|max:255',
             'location' => 'sometimes|string|max:255',
-            'description' => 'sometimes|string|max:255',
+            'description' => 'sometimes|nullable|string',
             'custodianID' => 'nullable|integer|exists:users,id',
             'isActive' => 'sometimes|boolean',
             'gallery' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,webp|max:4096',
